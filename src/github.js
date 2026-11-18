@@ -27,7 +27,14 @@ export async function fetchDeploy(env, client) {
     if (runs.some((r) => r.status !== 'completed')) state = 'pending';
     else if (runs.some((r) => ['failure', 'timed_out', 'cancelled'].includes(r.conclusion))) state = 'failure';
     else if (runs.length) state = 'success';
-  } catch { /* el token puede no tener permiso de Checks: queda unknown */ }
+  } catch { /* el token puede no tener permiso de Checks */ }
+  if (state === 'unknown') {
+    // Respaldo: estado combinado del commit (permiso "Commit statuses")
+    try {
+      const st = await gh(env, `/repos/${client.repo}/commits/${commit.sha}/status`);
+      if (st.total_count) state = { success: 'success', failure: 'failure', error: 'failure', pending: 'pending' }[st.state] || 'unknown';
+    } catch { /* sin permiso: queda unknown */ }
+  }
   return {
     sha: commit.sha.slice(0, 7),
     message: (commit.commit.message || '').split('\n')[0].slice(0, 140),
