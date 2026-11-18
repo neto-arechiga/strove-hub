@@ -19,7 +19,7 @@ async function accessKeys(team) {
 // Devuelve el correo de quien entra, o null si no está autorizado.
 export async function accessUser(request, env) {
   if (env.DEV_BYPASS === '1') return 'dev@local';
-  if (!env.ACCESS_AUD || !env.ACCESS_TEAM) return null;
+  if (!env.ACCESS_TEAM) return null;
   const jwt = request.headers.get('cf-access-jwt-assertion');
   if (!jwt) return null;
   const [h, p, s] = jwt.split('.');
@@ -31,7 +31,9 @@ export async function accessUser(request, env) {
     const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
     const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(s), new TextEncoder().encode(`${h}.${p}`));
     const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    if (!ok || !aud.includes(env.ACCESS_AUD) || payload.exp * 1000 < Date.now()) return null;
+    // Firma válida de NUESTRO equipo de Access y sesión vigente. El AUD se revisa solo si está configurado.
+    if (!ok || payload.iss !== `https://${env.ACCESS_TEAM}.cloudflareaccess.com` || payload.exp * 1000 < Date.now()) return null;
+    if (env.ACCESS_AUD && !aud.includes(env.ACCESS_AUD)) return null;
     return payload.email || 'usuario';
   } catch {
     return null;
