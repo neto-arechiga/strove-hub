@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Solicitud de cambio · {{CLIENT}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0A0A0A;--card:#141414;--line:#262626;--txt:#F4F2EE;--mut:#8C8A86;--pur:#534AB7;--org:#F25C2A}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--txt);font-family:Montserrat,system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 18px}
+  .wrap{width:100%;max-width:520px}
+  .logo{font-weight:900;font-size:28px;letter-spacing:-.04em;display:inline-block}
+  .logo:after{content:"";display:block;height:3px;margin-top:2px;background:linear-gradient(90deg,#4F8EF7,#00D4FF,#00E676,#FFE600,#FF6B00,#E63329)}
+  .brands{display:flex;align-items:center;gap:14px}
+  .brands img{max-height:44px;max-width:170px;object-fit:contain}
+  .brands .x{color:var(--mut);font-family:'Space Mono',monospace}
+  .logo{font-size:22px !important}
+  .eyebrow{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin:36px 0 10px}
+  h1{font-weight:900;font-size:clamp(30px,7vw,44px);line-height:.95;letter-spacing:-.03em;text-transform:lowercase}
+  p.lead{color:var(--mut);margin:14px 0 28px;line-height:1.5;font-size:15px}
+  label{display:block;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:18px 0 8px}
+  input,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--txt);font:500 15px Montserrat,sans-serif;padding:14px}
+  textarea{min-height:140px;resize:vertical;line-height:1.5}
+  input:focus,textarea:focus{outline:none;border-color:var(--pur)}
+  button{margin-top:26px;width:100%;background:var(--org);color:#0A0A0A;border:0;border-radius:999px;padding:16px;font:900 15px Montserrat,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  .hp{position:absolute;left:-9999px}
+  .msg{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pur);border-radius:10px;padding:22px;margin-top:28px;line-height:1.5}
+  .err{border-left-color:var(--org)}
+  .foot{margin-top:40px;font-family:'Space Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.1em}
+  [data-show]{display:none}
+</style>
+</head>
+<body data-state="{{STATE}}">
+<div class="wrap">
+  <div class="brands"><img src="{{LOGO}}" alt="{{CLIENT}}" onerror="this.remove()"><span class="x">×</span><span class="logo">strove</span></div>
+  <div class="eyebrow">Solicitud de cambio · {{CLIENT}}</div>
+  <h1>¿qué cambiamos en tu sitio?</h1>
+
+  <div data-show="form">
+    <p class="lead">Cuéntanos qué necesitas. Te mandamos un link para que veas el cambio antes de publicarlo.</p>
+    <form method="post" action="{{ACTION}}">
+      <label for="name">Tu nombre</label>
+      <input id="name" name="name" required maxlength="120" autocomplete="name">
+      <label for="title">¿Qué quieres cambiar?</label>
+      <input id="title" name="title" required maxlength="140" placeholder="Ej. Actualizar el precio del viaje a Japón">
+      <label for="detail">Detalles</label>
+      <textarea id="detail" name="detail" maxlength="4000" placeholder="Dónde está, cómo debe quedar, links o textos nuevos."></textarea>
+      <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit">Enviar solicitud</button>
+    </form>
+  </div>
+
+  <div data-show="sent" class="msg">
+    <strong>Recibido.</strong> Ya está en nuestra lista. Te escribimos cuando tengamos la vista previa lista para que la apruebes.
+  </div>
+  <div data-show="error" class="msg err">
+    No se pudo enviar. Revisa que el título no esté vacío e inténtalo otra vez, o escríbenos por WhatsApp.
+  </div>
+
+  <div class="foot">STROVE · HOLA@STROVE.MX</div>
+</div>
+<script>document.querySelectorAll('[data-show="'+document.body.dataset.state+'"]').forEach(e=>e.style.display='block')</script>
+</body>
+</html>

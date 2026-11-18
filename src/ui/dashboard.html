@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Strove Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+html{color-scheme:dark}
+:root{
+  --bg:#0A0A0A;--card:#131313;--card2:#1A1A1A;--line:#262626;--txt:#F4F2EE;--mut:#8C8A86;--dim:#5A5854;
+  --pur:#534AB7;--pur2:#8B83E6;--org:#F25C2A;--grn:#3DDC84;--red:#FF5A4E;--yel:#FFD23F;
+  --mono:'Space Mono',ui-monospace,monospace;--sans:Montserrat,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+.mono{font-family:var(--mono)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut)}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:5;background:rgba(10,10,10,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1280px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:18px}
+.logo{font-weight:900;font-size:24px;letter-spacing:-.045em;text-decoration:none;line-height:1}
+.logo:after{content:"";display:block;height:3px;margin-top:3px;background:linear-gradient(90deg,#4F8EF7,#00D4FF,#00E676,#FFE600,#FF6B00,#E63329)}
+.hubtag{font-family:var(--mono);font-size:11px;letter-spacing:.2em;border:1px solid var(--line);padding:4px 8px;border-radius:4px;color:var(--mut)}
+.top .sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:9px 16px;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;transition:.15s}
+.btn:hover{border-color:var(--dim)}
+.btn.pri{background:var(--org);border-color:var(--org);color:#0A0A0A}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.pur{background:var(--pur);border-color:var(--pur);color:#fff}
+.btn:disabled{opacity:.5;cursor:wait}
+.user{font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+main{max-width:1280px;margin:0 auto;padding:36px 28px 80px}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:28px}
+.hero h1{font-weight:900;font-size:clamp(40px,6vw,76px);line-height:.88;letter-spacing:-.045em;text-transform:lowercase}
+.hero h1 em{font-style:normal;color:var(--pur2)}
+.hero .meta{text-align:right}
+.hero .meta div{margin-top:6px;color:var(--mut);font-size:13px}
+
+/* totals */
+.totals{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:28px}
+.tot{padding:20px 22px;border-right:1px solid var(--line)}
+.tot:last-child{border-right:0}
+.tot .v{font-weight:900;font-size:34px;letter-spacing:-.03em;margin-top:8px;font-variant-numeric:tabular-nums}
+.delta{font-family:var(--mono);font-size:12px;font-weight:700}
+.up{color:var(--grn)}.down{color:var(--red)}.flat{color:var(--mut)}
+
+/* client cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;cursor:pointer;position:relative;overflow:hidden;transition:.18s}
+.card:hover{border-color:#3a3a3a;transform:translateY(-2px)}
+.card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.card h2{font-weight:900;font-size:26px;letter-spacing:-.035em;text-transform:lowercase;line-height:1}
+.card .url{color:var(--mut);font-family:var(--mono);font-size:11px;margin-top:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:5px 9px;border-radius:999px;background:var(--card2);border:1px solid var(--line);white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.dot.ok{background:var(--grn);box-shadow:0 0 0 3px rgba(61,220,132,.15)}
+.dot.bad{background:var(--red);box-shadow:0 0 0 3px rgba(255,90,78,.15)}
+.dot.warn{background:var(--yel)}
+.kp{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0 16px}
+.kp .l{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.kp .v{font-weight:900;font-size:22px;letter-spacing:-.02em;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.kp .na{color:var(--dim)}
+.spark{height:46px;width:100%;display:block}
+.card-f{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.pill.todo{color:var(--yel);border-color:rgba(255,210,63,.25)}
+.pill.req{color:#fff;background:var(--pur);border-color:var(--pur)}
+
+/* detail */
+.back{display:inline-flex;gap:8px;align-items:center;color:var(--mut);text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:22px}
+.back:hover{color:var(--txt)}
+.d-h{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+.d-h h1{font-weight:900;font-size:clamp(42px,6vw,80px);letter-spacing:-.05em;line-height:.88;text-transform:lowercase}
+.d-h h1 span{display:block;width:72px;height:6px;background:var(--c);margin-top:14px}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{text-decoration:none}
+.strip{display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:18px}
+.strip>div{padding:16px 20px;border-right:1px solid var(--line);min-width:0}
+.strip>div:last-child{border-right:0}
+.strip .v{font-weight:700;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip .s{color:var(--mut);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px}
+.k{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.k .v{font-weight:900;font-size:28px;letter-spacing:-.03em;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}
+.panel-h{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.panel h3{font-weight:900;font-size:20px;letter-spacing:-.025em;text-transform:lowercase}
+.tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px}
+.tabs button{border:0;background:none;padding:7px 13px;border-radius:999px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.tabs button.on{background:var(--pur);color:#fff}
+.chart{position:relative;height:260px}
+.chart svg{width:100%;height:100%;display:block;overflow:visible}
+.tip{position:absolute;pointer-events:none;background:#000;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:11px;white-space:nowrap;transform:translate(-50%,-110%);opacity:0;transition:opacity .1s}
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
+table{width:100%;border-collapse:collapse}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:400;padding:0 8px 10px}
+td{padding:10px 8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+td.n,th.n{text-align:right}
+.bar{display:grid;grid-template-columns:130px 1fr 54px;gap:10px;align-items:center;margin:10px 0}
+.bar .t{height:10px;background:var(--card2);border-radius:999px;overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--c,var(--pur));border-radius:999px}
+.bar .n{text-align:right;font-family:var(--mono);font-size:12px}
+.empty{color:var(--mut);padding:26px 0;text-align:center;font-size:13px;line-height:1.6}
+.empty b{color:var(--txt)}
+
+/* requests */
+.reqs{display:flex;flex-direction:column;gap:10px}
+.rq{display:grid;grid-template-columns:1fr auto;gap:14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.rq .t{font-weight:700}
+.rq .d{color:var(--mut);font-size:13px;margin-top:4px;white-space:pre-wrap}
+.rq .m{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.rq .m a{color:var(--pur2)}
+.rq-side{display:flex;flex-direction:column;gap:8px;align-items:flex-end;min-width:190px}
+select,input[type=text],input[type=url],input[type=date],input[type=time],textarea{background:var(--card2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font:500 13px var(--sans);padding:9px 11px}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--pur)}
+.st-nueva{color:var(--yel)}.st-en_proceso{color:var(--pur2)}.st-en_revision{color:var(--org)}.st-publicada{color:var(--grn)}.st-descartada{color:var(--dim)}
+.newreq{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.newreq .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.newreq textarea{min-height:70px;resize:vertical}
+.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12px}
+.formlink{display:flex;gap:8px;align-items:center;background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-bottom:16px}
+.formlink code{flex:1;font-family:var(--mono);font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log{font-family:var(--mono);font-size:11px;color:var(--mut);display:grid;grid-template-columns:200px 100px 1fr;gap:4px 12px}
+.log .bad{color:var(--red)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:12px 18px;border-radius:999px;font-weight:700;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:20;max-width:90vw}
+.toast.on{opacity:1}
+.brandlogo{height:52px;max-width:220px;object-fit:contain;object-position:left center;display:block}
+.brandlogo.lg{height:clamp(70px,9vw,120px);max-width:min(460px,80vw)}
+.brandname{font-weight:900;font-size:26px;letter-spacing:-.035em;text-transform:lowercase;line-height:1}
+.logo-wrap{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.logo-edit{background:none;border:0;color:var(--mut);font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:0;text-decoration:underline;text-underline-offset:3px}
+.logo-edit:hover{color:var(--txt)}
+.hint{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em;margin-top:2px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.steps span{padding:5px 9px;border:1px solid var(--line);border-radius:999px}
+.steps b{font-weight:400;color:var(--dim)}
+details.hist summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.hist summary::-webkit-details-marker{display:none}
+details.hist[open] summary{margin-bottom:14px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--pur);color:#fff;display:grid;place-items:center;font-weight:900;font-size:12px;text-transform:uppercase}
+
+/* tabs de la ficha */
+.ctabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 22px;overflow-x:auto}
+.ctabs a{padding:12px 16px;text-decoration:none;font-weight:700;font-size:13px;color:var(--mut);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;display:flex;gap:8px;align-items:center}
+.ctabs a:hover{color:var(--txt)}
+.ctabs a.on{color:var(--txt);border-color:var(--org)}
+.ctabs b{background:var(--pur);color:#fff;font-size:11px;border-radius:999px;padding:1px 7px}
+.kp.social{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+.kp.social .v{font-size:18px}
+.pill.wait{color:var(--yel);border-color:rgba(255,210,63,.35);background:rgba(255,210,63,.07)}
+.pill.chg{color:var(--org);border-color:rgba(242,92,42,.4);background:rgba(242,92,42,.08)}
+
+/* calendario */
+.cal-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cal-h .mon{font-weight:900;font-size:20px;letter-spacing:-.02em;text-transform:lowercase;min-width:170px;text-align:center}
+.cal-h .nav{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--card2);display:grid;place-items:center}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:-4px 0 14px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cal .dw{background:var(--bg);font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:8px 10px;border-bottom:1px solid var(--line)}
+.cal .d{min-height:118px;padding:6px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--card);cursor:pointer;display:flex;flex-direction:column;gap:4px;position:relative}
+.cal .d:nth-child(7n){border-right:0}
+.cal .d:hover{background:#171717}
+.cal .d.out{background:#0e0e0e}
+.cal .d.out .n{color:var(--dim)}
+.cal .d.today .n{background:var(--org);color:#0A0A0A;border-radius:999px;padding:0 7px}
+.cal .n{font-family:var(--mono);font-size:11px;color:var(--mut);align-self:flex-start;margin-bottom:2px}
+.cal .add{position:absolute;top:5px;right:7px;color:var(--dim);font-size:16px;opacity:0}
+.cal .d:hover .add{opacity:1}
+.chip{display:flex;gap:6px;align-items:center;border-radius:7px;padding:4px 6px;font-size:11px;font-weight:600;line-height:1.2;background:var(--card2);border-left:3px solid var(--sc);overflow:hidden;cursor:pointer}
+.chip img{width:22px;height:22px;object-fit:cover;border-radius:4px;flex-shrink:0}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.ig{border-left-color:#5A5854;color:var(--mut);font-weight:500}
+.sc-borrador{--sc:#5A5854}.sc-por_aprobar{--sc:var(--yel)}.sc-cambios{--sc:var(--org)}.sc-aprobado{--sc:var(--grn)}.sc-programado{--sc:var(--pur2)}.sc-publicado{--sc:#4F8EF7}
+
+/* posts publicados */
+.posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.post{background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;display:block}
+.post .ph{aspect-ratio:4/5;background:#0f0f0f center/cover no-repeat;position:relative}
+.post .ty{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;background:rgba(0,0,0,.7);padding:3px 6px;border-radius:4px}
+.post .st{padding:10px 10px 12px}
+.post .vw{font-weight:900;font-size:18px;letter-spacing:-.02em}
+.post .mi{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:3px}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:30;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.modal[hidden]{display:none}
+.sheet{background:var(--card);border:1px solid var(--line);border-radius:18px;width:100%;max-width:760px;display:grid;grid-template-columns:280px 1fr;overflow:hidden}
+.sheet .img{background:#0d0d0d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:320px;padding:14px;border-right:1px solid var(--line)}
+.sheet .img img{width:100%;border-radius:10px;max-height:420px;object-fit:cover}
+.sheet .fm{padding:22px;display:flex;flex-direction:column;gap:12px}
+.sheet .fm h3{font-weight:900;font-size:22px;letter-spacing:-.02em;text-transform:lowercase}
+.sheet .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet label{display:flex;flex-direction:column;gap:5px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.sheet textarea{min-height:150px;resize:vertical;line-height:1.5}
+.sheet .cc{background:rgba(242,92,42,.08);border:1px solid rgba(242,92,42,.3);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45}
+.sheet .cc.ok{background:rgba(61,220,132,.07);border-color:rgba(61,220,132,.3)}
+.sheet .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px}
+.sheet .acts .sp{flex:1}
+.btn.ghost{background:none;border-color:transparent;color:var(--mut)}
+.btn.ghost:hover{color:var(--red)}
+@media (max-width:760px){.sheet{grid-template-columns:1fr}.sheet .img{border-right:0;border-bottom:1px solid var(--line);min-height:200px}.cal .d{min-height:74px;padding:4px}.chip span{display:none}.chip{padding:3px}.cal .dw{padding:6px 4px;font-size:9px}}
+.loading{color:var(--mut);padding:80px 0;text-align:center;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+
+@media (max-width:1000px){.kgrid{grid-template-columns:repeat(3,1fr)}.two{grid-template-columns:1fr}.strip{grid-template-columns:1fr 1fr}.strip>div:nth-child(2){border-right:0}.strip>div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+@media (max-width:700px){main{padding:24px 16px 60px}.top-in{padding:12px 16px}.user,.hubtag{display:none}.totals{grid-template-columns:1fr 1fr}.tot:nth-child(2){border-right:0}.tot:nth-child(-n+2){border-bottom:1px solid var(--line)}.grid{grid-template-columns:1fr}.kgrid{grid-template-columns:1fr 1fr}.rq{grid-template-columns:1fr}.rq-side{align-items:stretch}.bar{grid-template-columns:96px 1fr 44px}.hero .meta{text-align:left}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <a class="logo" href="#/">strove</a><span class="hubtag">HUB</span>
+  <div class="sp"></div>
+  <span class="user" id="user"></span><span class="avatar" id="avatar" title=""></span>
+  <button class="btn" id="syncBtn" title="Vuelve a pedir a Google y GitHub los datos más recientes">Actualizar datos</button>
+</div></header>
+<main id="app"><div class="loading">Cargando…</div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf = new Intl.NumberFormat('es-MX');
+const fmt = (v, m) => v == null ? '—' : m === 'position' ? v.toFixed(1) : nf.format(Math.round(v));
+const STATUS = { nueva:'Nueva', en_proceso:'En proceso', en_revision:'En revisión', publicada:'Publicada', descartada:'Descartada' };
+const LABEL = { sessions:'Visitas', users:'Personas', leads:'Leads', clicks:'Clics desde Google', impressions:'Veces en Google', position:'Posición en Google',
+  followers:'Seguidores', reach:'Alcance', post_views:'Views de posts', interactions:'Interacciones', posts_count:'Posts publicados', ad_spend:'Gasto en pauta', ad_messages:'Conversaciones' };
+const HINT = { followers:'Contra hace 28 días', reach:'Cuentas que los vieron', post_views:'De los posts del periodo', interactions:'Likes, comentarios, guardados', posts_count:'En los últimos 28 días', ad_spend:'MXN en Meta Ads', ad_messages:'Chats iniciados por anuncios',
+  sessions:'Entradas al sitio', users:'Personas distintas', leads:'Clics a WhatsApp', clicks:'Llegaron desde una búsqueda', impressions:'Apareció en resultados', position:'Más bajo es mejor' };
+const LEAD_NAME = { click_whatsapp:'Clic a WhatsApp' };
+const SRC = { ga4:'Analytics', gsc:'Search Console', github:'GitHub', solicitudes:'Solicitudes', uptime:'Sitio en línea' };
+let ME = '';
+const CHANNEL = { 'Organic Search':'Google (orgánico)', 'Direct':'Directo', 'Organic Social':'Redes sociales', 'Paid Social':'Pauta en redes', 'Referral':'Otros sitios', 'Paid Search':'Google Ads', 'Email':'Correo', 'Unassigned':'Sin clasificar', 'Organic Video':'Video', 'Organic Maps':'Google Maps', 'Cross-network':'Campañas mixtas' };
+const logoImg = (c, cls = '') => `<img class="brandlogo ${cls}" src="${esc(c.logo)}" alt="${esc(c.name)}" data-name="${esc(c.name)}">`;
+// Si un cliente no tiene logo, se muestra su nombre
+document.addEventListener('error', (e) => {
+  const t = e.target;
+  if (t.classList && t.classList.contains('brandlogo')) { const sp = document.createElement('span'); sp.className = 'brandname'; sp.textContent = t.dataset.name; t.replaceWith(sp); }
+}, true);
+
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 3200); }
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
+  return data;
+}
+const ago = (iso) => {
+  if (!iso) return '—';
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (m < 1) return 'ahora'; if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60); if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.round(h / 24)} d`;
+};
+const dShort = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', { day:'numeric', month:'short' });
+
+// Variación: en posición, bajar es bueno
+function delta(k, metric) {
+  if (!k || k.cur == null || !k.prev) return '<span class="delta flat">aún sin mes previo</span>';
+  const pct = (k.cur - k.prev) / k.prev * 100;
+  const good = metric === 'position' ? pct < 0 : pct > 0;
+  if (Math.abs(pct) < 0.5) return '<span class="delta flat">igual que antes</span>';
+  return `<span class="delta ${good ? 'up' : 'down'}">${good ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%${metric === 'position' ? (good ? ' mejor' : ' peor') : ''}</span>`;
+}
+
+function siteDot(s) {
+  if (!s || !s.checked_at) return ['', 'Sin revisar'];
+  if (s.http_status >= 200 && s.http_status < 400) {
+    if (s.deploy_state === 'failure') return ['warn', 'Deploy falló'];
+    return ['ok', 'En línea'];
+  }
+  return ['bad', s.http_status ? `Error ${s.http_status}` : 'Caído'];
+}
+
+function sparkSvg(vals, color) {
+  const v = vals.map((x) => x ?? 0);
+  if (!v.some((x) => x > 0)) return `<svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none"><line x1="0" y1="44" x2="300" y2="44" stroke="#262626" stroke-dasharray="3 4"/></svg>`;
+  const max = Math.max(...v), W = 300, H = 46;
+  const pts = v.map((x, i) => [i / (v.length - 1) * W, H - 3 - (x / max) * (H - 8)]);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <path d="${d} L${W} ${H} L0 ${H} Z" fill="${color}" opacity=".14"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+
+// ---------------- vista general ----------------
+async function renderOverview() {
+  const app = $('#app');
+  const data = await api('/api/overview');
+  const sum = (m, key) => data.clients.reduce((a, c) => a + (c.kpis[m]?.[key] || 0), 0);
+  const tot = (m) => ({ cur: sum(m, 'cur'), prev: sum(m, 'prev') });
+  const openTotal = data.clients.reduce((a, c) => a + c.openRequests, 0);
+
+  app.innerHTML = `
+    <section class="hero">
+      <div><div class="eyebrow">${ME ? 'Hola, ' + esc(ME) + ' · ' : ''}We have the data</div><h1 style="margin-top:12px">todos tus<br><em>clientes.</em></h1></div>
+      <div class="meta"><div class="eyebrow">Últimos 28 días vs. los 28 anteriores</div><div>Datos actualizados ${esc(ago(data.lastSync))}</div></div>
+    </section>
+    <section class="totals">
+      ${[['sessions','Visitas'],['leads','Leads'],['clicks','Clics desde Google']].map(([m,l]) => `
+        <div class="tot"><div class="eyebrow">${l}</div><div class="v">${fmt(tot(m).cur)}</div>${delta(tot(m), m)}</div>`).join('')}
+      <div class="tot"><div class="eyebrow">Cambios pendientes</div><div class="v">${openTotal}</div><span class="delta flat">${data.clients.length} clientes</span></div>
+    </section>
+    <section class="grid">${data.clients.map(card).join('')}</section>`;
+  app.querySelectorAll('.card').forEach((el) => el.addEventListener('click', () => location.hash = '#/c/' + el.dataset.slug));
+}
+
+function card(c) {
+  const [dc, dl] = siteDot(c.status);
+  const todo = [];
+  if (!c.setup.ga4) todo.push('Falta conectar Analytics');
+  if (!c.setup.clarity) todo.push('Falta Clarity');
+  if (!c.setup.cms) todo.push('Sin panel para editar');
+  if (!c.setup.ig) todo.push('Falta conectar Instagram');
+  const k = (m) => `<div><div class="l">${LABEL[m]}</div><div class="v ${c.kpis[m] ? '' : 'na'}">${fmt(c.kpis[m]?.cur, m)}</div>${c.kpis[m] ? delta(c.kpis[m], m) : ''}</div>`;
+  return `<article class="card" data-slug="${esc(c.slug)}" style="--c:${esc(c.color)}">
+    <div class="card-h">
+      <div class="logo-wrap">${logoImg(c)}<div class="url">${esc((c.url || '').replace(/^https?:\/\//, ''))}</div></div>
+      <span class="pill"><i class="dot ${dc}"></i>${dl}</span>
+    </div>
+    <div class="kp">${k('sessions')}${k('leads')}${k('clicks')}${k('position')}</div>
+    ${sparkSvg(c.spark.values.sessions || [], c.color)}
+    ${c.setup.ig ? `<div class="kp social">${k('followers')}${k('reach')}${k('post_views')}${k('interactions')}</div>` : ''}
+    <div class="card-f">
+      ${c.plan.aprobar ? `<span class="pill wait">${c.plan.aprobar} post${c.plan.aprobar > 1 ? 's' : ''} por aprobar</span>` : ''}
+      ${c.plan.cambios ? `<span class="pill chg">${c.plan.cambios} con cambios del cliente</span>` : ''}
+      ${c.openRequests ? `<span class="pill req">${c.openRequests} cambio${c.openRequests > 1 ? 's' : ''} pendiente${c.openRequests > 1 ? 's' : ''}</span>` : ''}
+      ${todo.map((t) => `<span class="pill todo">${t}</span>`).join('')}
+    </div>
+  </article>`;
+}
+
+// ---------------- ficha del cliente ----------------
+let chartMetric = 'sessions';
+async function renderClient(slug, tab = 'sitio') {
+  const app = $('#app');
+  const d = await api('/api/clients/' + slug);
+  const openReq = d.requests.filter((r) => !['publicada', 'descartada'].includes(r.status)).length;
+  const c = d.client, s = d.status || {};
+  const [dc, dl] = siteDot(s);
+  const hasData = d.series.dates.length > 0;
+
+  app.innerHTML = `
+    <a class="back" href="#/">← Todos los sitios</a>
+    <section class="d-h" style="--c:${esc(c.color)}">
+      <div class="logo-wrap">${logoImg(c, 'lg')}<button class="logo-edit" id="logoBtn">Cambiar logo</button><input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden></div>
+      <div class="links">${d.links.map((l) => `<a class="btn" href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}</div>
+    </section>
+
+    <nav class="ctabs" id="ctabs">
+      <a href="#/c/${esc(slug)}/sitio" data-t="sitio">Sitio web</a>
+      <a href="#/c/${esc(slug)}/redes" data-t="redes">Redes y contenido</a>
+      <a href="#/c/${esc(slug)}/cambios" data-t="cambios">Cambios al sitio${openReq ? `<b>${openReq}</b>` : ''}</a>
+    </nav>
+
+    <div data-tab="redes" id="redes"></div>
+    <div data-tab="sitio">
+    <section class="strip">
+      <div><div class="eyebrow">Sitio</div><div class="v"><i class="dot ${dc}" style="display:inline-block;margin-right:8px"></i>${dl}</div><div class="s">${s.response_ms ? s.response_ms + ' ms · ' : ''}${esc(ago(s.checked_at))}</div></div>
+      <div><div class="eyebrow">Último cambio</div><div class="v" title="${esc(s.commit_msg)}">${esc(s.commit_msg || '—')}</div><div class="s">${s.commit_sha ? esc(s.commit_sha) + ' · ' : ''}${esc(ago(s.commit_date))}</div></div>
+      <div><div class="eyebrow">Publicación</div><div class="v">${{success:'Publicado ✓',failure:'Falló, revisar',pending:'Publicando…'}[s.deploy_state] || 'Sin dato'}</div><div class="s">Último cambio en línea</div></div>
+      <div><div class="eyebrow">Qué cuenta como lead</div><div class="v">${esc(LEAD_NAME[c.leadEvent] || c.leadEvent || '—')}</div><div class="s">Se mide en Analytics</div></div>
+    </section>
+
+    <section class="kgrid">${['sessions','users','leads','clicks','impressions','position'].map((m) => `
+      <div class="k" title="${HINT[m]}"><div class="eyebrow">${LABEL[m]}</div><div class="hint">${HINT[m]}</div><div class="v">${fmt(d.kpis[m]?.cur, m)}</div>${d.kpis[m] ? delta(d.kpis[m], m) : '<span class="delta flat">sin datos</span>'}</div>`).join('')}
+    </section>
+
+    <section class="panel" style="--c:${esc(c.color)}">
+      <div class="panel-h"><h3>últimos 90 días</h3>
+        <div class="tabs" id="tabs">${['sessions','leads','clicks','impressions','position'].map((m) => `<button data-m="${m}" class="${m === chartMetric ? 'on' : ''}">${LABEL[m]}</button>`).join('')}</div>
+      </div>
+      ${hasData ? '<div class="chart" id="chart"><div class="tip" id="tip"></div></div>' : setupHelp(c)}
+    </section>
+
+    <section class="two">
+      <div class="panel"><div class="panel-h"><h3>qué buscan en google</h3><span class="eyebrow">28 días</span></div>
+        ${d.queries.length ? `<table><thead><tr><th>Búsqueda</th><th class="n">Clics</th><th class="n">Impr.</th><th class="n">Pos.</th></tr></thead><tbody>
+          ${d.queries.map((q) => `<tr><td>${esc(q.label)}</td><td class="n">${fmt(q.value)}</td><td class="n">${fmt(q.extra?.impressions)}</td><td class="n">${q.extra?.position?.toFixed(1) ?? '—'}</td></tr>`).join('')}
+        </tbody></table>` : `<div class="empty">Aún no hay búsquedas.<br>Search Console tarda unos días en juntar datos de un sitio nuevo.</div>`}
+      </div>
+      <div class="panel" style="--c:${esc(c.color)}"><div class="panel-h"><h3>de dónde llegan</h3><span class="eyebrow">28 días</span></div>
+        ${d.channels.length ? (() => { const mx = Math.max(...d.channels.map((x) => x.value)); return d.channels.map((x) => `
+          <div class="bar"><span>${esc(CHANNEL[x.label] || x.label)}</span><span class="t"><i style="width:${(x.value / mx * 100).toFixed(1)}%"></i></span><span class="n">${fmt(x.value)}</span></div>`).join(''); })()
+          : `<div class="empty">${c.setup.ga4 ? 'Sin visitas registradas todavía.' : '<b>Conecta GA4</b> para ver los canales.'}</div>`}
+      </div>
+    </section>
+
+    </div>
+    <div data-tab="cambios">
+    <section class="panel" id="reqPanel">
+      <div class="panel-h"><h3>cambios que piden</h3><button class="btn" id="refreshReq" title="Revisa en GitHub qué ya se hizo">Revisar avances</button></div>
+      <div class="steps"><span class="st-nueva">Nueva</span><b>→</b><span class="st-en_proceso">En proceso</span><b>→</b><span class="st-en_revision">En revisión</span><b>→</b><span class="st-publicada">Publicada</span></div>
+      ${d.formUrl ? `<div class="formlink"><span class="eyebrow">Link para que el cliente pida cambios</span><code>${esc(d.formUrl)}</code><button class="btn" id="copyForm">Copiar</button></div>` : ''}
+      <form class="newreq" id="newReq">
+        <input type="text" name="title" placeholder="¿Qué hay que cambiar? Ej. Cambiar foto del hero" maxlength="140" required>
+        <textarea name="detail" placeholder="Detalle, textos nuevos, links… (lo que te mandó por WhatsApp)"></textarea>
+        <div class="row">
+          <input type="text" name="requester" placeholder="Quién lo pidió" maxlength="120" style="flex:1;min-width:160px">
+          <label class="chk" title="Crea la tarea en el repo del sitio para hacer el cambio"><input type="checkbox" name="issue" checked> Crear tarea en GitHub</label>
+          <button class="btn pri" type="submit">Agregar</button>
+        </div>
+      </form>
+      <div class="reqs">${d.requests.length ? d.requests.map(reqRow).join('') : '<div class="empty">Nada pendiente. Cuando el cliente pida algo, aparece aquí.</div>'}</div>
+    </section>
+
+    </div>
+    <details data-tab="sitio" class="panel hist" ${d.logs.some((l) => !l.ok) ? 'open' : ''}><summary><h3>historial de actualizaciones</h3><span class="eyebrow">${d.logs.some((l) => !l.ok) ? '⚠ Hay algo por revisar' : 'Todo en orden · ver'}</span></summary>
+      ${d.logs.length ? `<div class="log">${d.logs.map((l) => `<span>${esc(new Date(l.run_at).toLocaleString('es-MX', { dateStyle:'short', timeStyle:'short' }))}</span><span>${esc(SRC[l.source] || l.source)}</span><span class="${l.ok ? '' : 'bad'}">${esc(l.ok ? 'Listo' : l.message)}</span>`).join('')}</div>`
+        : '<div class="empty">Todavía no se han pedido datos. Presiona “Actualizar datos”.</div>'}
+    </details>`;
+
+  app.querySelectorAll('[data-tab]').forEach((el) => el.hidden = el.dataset.tab !== tab);
+  app.querySelectorAll('#ctabs a').forEach((a) => a.classList.toggle('on', a.dataset.t === tab));
+  renderSocial(d, slug);
+  if (hasData && tab === 'sitio') drawChart(d.series, c.color);
+  $('#tabs').addEventListener('click', (e) => { const m = e.target.dataset.m; if (!m) return; chartMetric = m; $('#tabs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === m)); if (hasData) drawChart(d.series, c.color); });
+  $('#logoBtn').addEventListener('click', () => $('#logoFile').click());
+  $('#logoFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append('logo', f);
+    try {
+      const res = await fetch('/api/clients/' + slug + '/logo', { method: 'POST', body: fd });
+      const r = await res.json(); if (!res.ok) throw new Error(r.error);
+      toast('Logo actualizado'); await renderClient(slug, currentTab());
+    } catch (err) { toast(err.message); }
+  });
+  $('#copyForm')?.addEventListener('click', () => navigator.clipboard.writeText(d.formUrl).then(() => toast('Link copiado. Mándaselo al cliente.')));
+  $('#refreshReq').addEventListener('click', async (e) => { e.target.disabled = true; try { await api('/api/requests/refresh?client=' + slug, { method: 'POST' }); await renderClient(slug, currentTab()); toast('Solicitudes al día'); } catch (err) { toast(err.message); e.target.disabled = false; } });
+  $('#newReq').addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target; const b = f.querySelector('button'); b.disabled = true;
+    try {
+      const r = await api('/api/requests', { method: 'POST', body: JSON.stringify({ client: slug, title: f.title.value, detail: f.detail.value, requester: f.requester.value, createIssue: f.issue.checked }) });
+      toast(r.warning || 'Solicitud agregada'); await renderClient(slug, currentTab());
+    } catch (err) { toast(err.message); b.disabled = false; }
+  });
+  app.querySelectorAll('[data-req]').forEach((el) => {
+    const id = el.dataset.req;
+    el.querySelector('select').addEventListener('change', (e) => patchReq(id, { status: e.target.value }, slug));
+    el.querySelector('input').addEventListener('change', (e) => patchReq(id, { preview_url: e.target.value }, slug));
+  });
+}
+
+async function patchReq(id, body, slug) {
+  try { await api('/api/requests/' + id, { method: 'PATCH', body: JSON.stringify(body) }); toast('Guardado'); await renderClient(slug, currentTab()); }
+  catch (err) { toast(err.message); }
+}
+
+function reqRow(r) {
+  return `<div class="rq" data-req="${r.id}">
+    <div>
+      <div class="t">${esc(r.title)}</div>
+      ${r.detail ? `<div class="d">${esc(r.detail)}</div>` : ''}
+      <div class="m">
+        <span>#${r.id}</span><span>${r.source === 'cliente' ? 'Lo pidió' : 'Capturó'} ${esc(r.requester || (r.source === 'cliente' ? 'el cliente' : 'Strove'))}</span>
+        <span>${esc(new Date(r.created_at).toLocaleDateString('es-MX', { day:'numeric', month:'short' }))}</span>
+        ${r.issue_url ? `<a href="${esc(r.issue_url)}" target="_blank" rel="noopener">Tarea #${r.issue_number} ↗</a>` : ''}
+        ${r.preview_url ? `<a href="${esc(r.preview_url)}" target="_blank" rel="noopener">Vista previa ↗</a>` : ''}
+      </div>
+    </div>
+    <div class="rq-side">
+      <select class="st-${esc(r.status)}">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === r.status ? 'selected' : ''}>${v}</option>`).join('')}</select>
+      <input type="url" placeholder="Link de vista previa" value="${esc(r.preview_url || '')}">
+    </div>
+  </div>`;
+}
+
+function setupHelp(c) {
+  const steps = [];
+  if (!c.setup.ga4) steps.push('Agrega el <b>ID de propiedad de GA4</b> en <code>src/clients.js</code> y da acceso de lector a la cuenta de servicio.');
+  if (c.setup.gsc) steps.push('Agrega la cuenta de servicio como usuario en <b>Search Console</b>.');
+  steps.push('Presiona <b>Sincronizar</b> arriba. La primera vez trae 90 días.');
+  return `<div class="empty">Sin datos todavía.<br>${steps.join('<br>')}</div>`;
+}
+
+function drawChart(series, color) {
+  const el = $('#chart'); if (!el) return;
+  const m = chartMetric, vals = series.values[m] || [], dates = series.dates;
+  el.querySelector('svg')?.remove();
+  const W = el.clientWidth, H = el.clientHeight, P = { l: 44, r: 10, t: 12, b: 26 };
+  const present = vals.filter((v) => v != null);
+  const tip = $('#tip');
+  if (!present.length) { el.insertAdjacentHTML('afterbegin', `<svg><text x="${W/2}" y="${H/2}" fill="#8C8A86" text-anchor="middle" font-family="Space Mono" font-size="12">Sin datos de ${LABEL[m].toLowerCase()} en este periodo</text></svg>`); return; }
+  const inv = m === 'position';
+  let lo = inv ? Math.min(...present) : 0, hi = Math.max(...present);
+  if (hi === lo) hi = lo + 1;
+  const x = (i) => P.l + i / (dates.length - 1) * (W - P.l - P.r);
+  const y = (v) => inv ? P.t + (v - lo) / (hi - lo) * (H - P.t - P.b) : H - P.b - (v - lo) / (hi - lo) * (H - P.t - P.b);
+  let d = '', open = false;
+  vals.forEach((v, i) => { if (v == null) { open = false; return; } d += (open ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); open = true; });
+  const ticks = [0, .5, 1].map((t) => lo + (hi - lo) * t);
+  const xt = [0, Math.floor(dates.length / 3), Math.floor(dates.length * 2 / 3), dates.length - 1];
+  el.insertAdjacentHTML('afterbegin', `<svg viewBox="0 0 ${W} ${H}">
+    ${ticks.map((t) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" stroke="#222"/><text x="${P.l - 8}" y="${y(t) + 4}" fill="#5A5854" font-family="Space Mono" font-size="10" text-anchor="end">${fmt(t, m)}</text>`).join('')}
+    ${xt.map((i) => `<text x="${x(i)}" y="${H - 6}" fill="#5A5854" font-family="Space Mono" font-size="10" text-anchor="${i === 0 ? 'start' : i === dates.length - 1 ? 'end' : 'middle'}">${dShort(dates[i])}</text>`).join('')}
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>
+    <line id="hl" y1="${P.t}" y2="${H - P.b}" stroke="#555" stroke-dasharray="3 3" opacity="0"/>
+    <circle id="hc" r="5" fill="${color}" stroke="#0A0A0A" stroke-width="2" opacity="0"/>
+    <rect x="${P.l}" y="0" width="${W - P.l - P.r}" height="${H}" fill="transparent" id="hit"/>
+  </svg>`);
+  const svg = el.querySelector('svg');
+  svg.querySelector('#hit').addEventListener('mousemove', (e) => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.round((e.clientX - r.left - P.l) / (W - P.l - P.r) * (dates.length - 1));
+    if (i < 0 || i >= dates.length) return;
+    const v = vals[i], hl = svg.querySelector('#hl'), hc = svg.querySelector('#hc');
+    hl.setAttribute('x1', x(i)); hl.setAttribute('x2', x(i)); hl.setAttribute('opacity', 1);
+    if (v != null) { hc.setAttribute('cx', x(i)); hc.setAttribute('cy', y(v)); hc.setAttribute('opacity', 1); } else hc.setAttribute('opacity', 0);
+    tip.innerHTML = `${dShort(dates[i])} · <b>${fmt(v, m)}</b> ${LABEL[m].toLowerCase()}`;
+    tip.style.left = x(i) + 'px'; tip.style.top = (v != null ? y(v) : H / 2) + 'px'; tip.style.opacity = 1;
+  });
+  svg.querySelector('#hit').addEventListener('mouseleave', () => { tip.style.opacity = 0; svg.querySelector('#hl').setAttribute('opacity', 0); svg.querySelector('#hc').setAttribute('opacity', 0); });
+}
+
+
+// ---------------- redes y contenido ----------------
+const PSTATUS = { borrador:'Borrador', por_aprobar:'Por aprobar', cambios:'Cliente pidió cambios', aprobado:'Aprobado', programado:'Programado en Meta', publicado:'Publicado' };
+const PFORMAT = { post:'Post', carrusel:'Carrusel', reel:'Reel', historia:'Historia' };
+const PNET = { instagram:'Instagram', facebook:'Facebook', ambas:'Instagram + Facebook' };
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const currentTab = () => (location.hash.match(/^#\/c\/[a-z0-9-]+\/(sitio|redes|cambios)/) || [])[1] || 'sitio';
+let calMonth = null; // Date del primer día del mes visible
+
+function renderSocial(d, slug) {
+  const el = $('#redes'); if (!el) return;
+  const c = d.client, k = d.kpis;
+  const kp = (m) => `<div class="k" title="${HINT[m] || ''}"><div class="eyebrow">${LABEL[m]}</div><div class="hint">${HINT[m] || ''}</div><div class="v">${m === 'ad_spend' && k[m] ? '$' : ''}${fmt(k[m]?.cur, m)}</div>${k[m] && k[m].prev != null ? delta(k[m], m) : '<span class="delta flat">—</span>'}</div>`;
+  const metrics = ['followers', 'reach', 'post_views', 'interactions', 'posts_count', c.setup.ads ? 'ad_spend' : null, c.setup.ads ? 'ad_messages' : null].filter(Boolean).slice(0, 6);
+  el.innerHTML = `
+    ${c.setup.ig ? `<section class="kgrid">${metrics.map(kp).join('')}</section>`
+      : `<section class="panel"><div class="empty"><b>Instagram aún no está conectado.</b><br>Pon el ID de su cuenta en <code>src/clients.js</code> y presiona “Actualizar datos”. El calendario ya lo puedes usar.</div></section>`}
+
+    <section class="panel">
+      <div class="panel-h">
+        <h3>calendario de contenido</h3>
+        <div class="cal-h"><button class="nav" id="calPrev" aria-label="Mes anterior">‹</button><span class="mon" id="calMon"></span><button class="nav" id="calNext" aria-label="Mes siguiente">›</button>
+        <button class="btn pri" id="calNew">+ Nuevo post</button></div>
+      </div>
+      <div class="legend">${Object.entries(PSTATUS).map(([k2, v]) => `<span><i class="sc-${k2}" style="background:var(--sc)"></i>${v}</span>`).join('')}<span><i style="background:#5A5854"></i>Ya en Instagram</span></div>
+      ${d.approveUrl ? `<div class="formlink"><span class="eyebrow">Link para que el cliente apruebe</span><code>${esc(d.approveUrl)}</code><button class="btn" id="copyApprove">Copiar</button></div>` : ''}
+      <div id="cal"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-h"><h3>lo último en instagram</h3><span class="eyebrow">Views · likes · comentarios · guardados</span></div>
+      ${d.posts.length ? `<div class="posts">${d.posts.map((p) => `
+        <a class="post" href="${esc(p.permalink)}" target="_blank" rel="noopener">
+          <div class="ph" style="background-image:url('${esc(p.thumb || '')}')"><span class="ty">${esc(p.type === 'REEL' ? 'REEL' : p.type === 'CAROUSEL_ALBUM' ? 'CARRUSEL' : p.type === 'VIDEO' ? 'VIDEO' : 'POST')}</span></div>
+          <div class="st"><div class="vw">${fmt(p.views ?? p.reach)} <span class="mi">${p.views != null ? 'views' : 'alcance'}</span></div>
+            <div class="mi">♥ ${fmt(p.likes)} · 💬 ${fmt(p.comments)} · ⤓ ${fmt(p.saves)}</div>
+            <div class="mi">${esc(dShort(p.local_date))}</div></div>
+        </a>`).join('')}</div>`
+        : `<div class="empty">${c.setup.ig ? 'Todavía no hay posts. Presiona “Actualizar datos”.' : 'Aquí aparecen los posts publicados con sus números cuando conectes Instagram.'}</div>`}
+    </section>
+    <div class="modal" id="modal" hidden></div>`;
+
+  $('#copyApprove')?.addEventListener('click', () => navigator.clipboard.writeText(d.approveUrl).then(() => toast('Link copiado. Mándaselo al cliente.')));
+  if (!calMonth) { const t = new Date(); calMonth = new Date(t.getFullYear(), t.getMonth(), 1); }
+  $('#calPrev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); drawCal(d, slug); });
+  $('#calNext').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); drawCal(d, slug); });
+  $('#calNew').addEventListener('click', () => openEditor(slug, { date: ymd(new Date()), status: 'borrador', network: 'instagram', format: 'post' }, d));
+  drawCal(d, slug);
+}
+
+async function drawCal(d, slug) {
+  const first = calMonth, start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7)); // semana empieza en lunes
+  const days = Array.from({ length: 42 }, (_, i) => { const x = new Date(start); x.setDate(start.getDate() + i); return x; });
+  $('#calMon').textContent = first.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+  const { items } = await api(`/api/plan?client=${slug}&from=${ymd(days[0])}&to=${ymd(days[41])}`);
+  const planned = new Set(items.filter((i) => i.post_id).map((i) => i.post_id));
+  const byDay = {};
+  items.forEach((i) => (byDay[i.date] ||= []).push({ kind: 'plan', ...i }));
+  d.posts.filter((p) => !planned.has(p.id)).forEach((p) => (byDay[p.local_date] ||= []).push({ kind: 'ig', ...p }));
+  const today = ymd(new Date());
+  $('#cal').innerHTML = `<div class="cal">${['lun','mar','mié','jue','vie','sáb','dom'].map((w) => `<div class="dw">${w}</div>`).join('')}
+    ${days.map((x) => { const key = ymd(x); const list = byDay[key] || [];
+      return `<div class="d ${x.getMonth() !== first.getMonth() ? 'out' : ''} ${key === today ? 'today' : ''}" data-date="${key}"><span class="n">${x.getDate()}</span><span class="add">+</span>
+        ${list.map((it) => it.kind === 'plan'
+          ? `<div class="chip sc-${esc(it.status)}" data-id="${it.id}" title="${esc(PSTATUS[it.status])}">${it.has_image ? `<img src="/api/plan/${it.id}/img?v=${encodeURIComponent(it.updated_at)}" alt="">` : ''}<span>${esc(it.title || PFORMAT[it.format])}</span></div>`
+          : `<a class="chip ig" href="${esc(it.permalink)}" target="_blank" rel="noopener" title="Publicado en Instagram">${it.thumb ? `<img src="${esc(it.thumb)}" alt="">` : ''}<span>${fmt(it.views ?? it.reach)} views</span></a>`).join('')}
+      </div>`; }).join('')}</div>`;
+  $('#cal').onclick = (e) => {
+    if (e.target.closest('a.chip')) return;
+    const chip = e.target.closest('.chip[data-id]');
+    if (chip) { const it = items.find((i) => i.id == chip.dataset.id); return openEditor(slug, it, d); }
+    const day = e.target.closest('.d'); if (day) openEditor(slug, { date: day.dataset.date, status: 'borrador', network: 'instagram', format: 'post' }, d);
+  };
+}
+
+// Comprime la imagen en el navegador (máx. 1080 px) antes de subirla
+function compress(file) {
+  return new Promise((res, rej) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => { const r = Math.min(1, 1080 / Math.max(img.width, img.height)); const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * r); cv.height = Math.round(img.height * r); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', 0.82)); };
+    img.onerror = () => rej(new Error('No se pudo leer la imagen')); img.src = url;
+  });
+}
+
+function openEditor(slug, it, d) {
+  const m = $('#modal'); const isNew = !it.id; let image; // undefined = sin cambio
+  const opt = (obj, v) => Object.entries(obj).map(([k2, l]) => `<option value="${k2}" ${k2 === v ? 'selected' : ''}>${l}</option>`).join('');
+  m.innerHTML = `<div class="sheet">
+    <div class="img" id="edImg">${it.has_image ? `<img src="/api/plan/${it.id}/img?v=${encodeURIComponent(it.updated_at)}" alt="">` : '<span class="eyebrow">Sin imagen</span>'}
+      <button class="btn" id="edPick">${it.has_image ? 'Cambiar imagen' : 'Subir imagen'}</button><input type="file" id="edFile" accept="image/*" hidden></div>
+    <form class="fm" id="edForm">
+      <h3>${isNew ? 'nuevo post' : 'editar post'}</h3>
+      ${it.client_comment ? `<div class="cc ${it.status === 'aprobado' ? 'ok' : ''}"><b>${esc(it.reviewed_by || 'Cliente')}:</b> ${esc(it.client_comment)}</div>` : it.status === 'aprobado' && it.reviewed_by ? `<div class="cc ok">Aprobado por <b>${esc(it.reviewed_by)}</b></div>` : ''}
+      <div class="row"><label>Fecha<input type="date" name="date" value="${esc(it.date)}" required></label><label>Hora<input type="time" name="time" value="${esc(it.time || '')}"></label></div>
+      <div class="row"><label>Red<select name="network">${opt(PNET, it.network)}</select></label><label>Formato<select name="format">${opt(PFORMAT, it.format)}</select></label></div>
+      <label>Título interno<input type="text" name="title" value="${esc(it.title || '')}" maxlength="120" placeholder="Ej. Reel Japón abril"></label>
+      <label>Copy<textarea name="copy" maxlength="2200" placeholder="Texto del post, hashtags van en el primer comentario">${esc(it.copy || '')}</textarea></label>
+      <label>Estado<select name="status">${opt(PSTATUS, it.status)}</select></label>
+      <div class="acts">
+        ${isNew ? '' : '<button type="button" class="btn ghost" id="edDel">Borrar</button>'}<span class="sp"></span>
+        <button type="button" class="btn" id="edClose">Cancelar</button>
+        ${['borrador', 'cambios'].includes(it.status || 'borrador') ? '<button type="button" class="btn pur" id="edSend">Mandar a aprobación</button>' : ''}
+        <button type="submit" class="btn pri">Guardar</button>
+      </div>
+    </form></div>`;
+  m.hidden = false;
+  const close = () => { m.hidden = true; m.innerHTML = ''; };
+  m.onclick = (e) => { if (e.target === m) close(); };
+  $('#edClose').onclick = close;
+  $('#edPick').onclick = () => $('#edFile').click();
+  $('#edFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return;
+    try { image = await compress(f); $('#edImg').querySelector('img, .eyebrow').outerHTML = `<img src="${image}" alt="">`; } catch (err) { toast(err.message); } };
+  const save = async (extra = {}) => {
+    const f = $('#edForm'); const body = { date: f.date.value, time: f.time.value, network: f.network.value, format: f.format.value, title: f.title.value, copy: f.copy.value, status: f.status.value, ...extra };
+    if (image !== undefined) body.image = image;
+    try {
+      if (isNew) await api('/api/plan', { method: 'POST', body: JSON.stringify({ client: slug, ...body }) });
+      else await api('/api/plan/' + it.id, { method: 'PATCH', body: JSON.stringify(body) });
+      close(); toast(extra.status === 'por_aprobar' ? 'Listo: el cliente ya lo puede aprobar' : 'Guardado');
+      calMonth = new Date(+body.date.slice(0, 4), +body.date.slice(5, 7) - 1, 1); drawCal(d, slug);
+    } catch (err) { toast(err.message); }
+  };
+  $('#edForm').onsubmit = (e) => { e.preventDefault(); save(); };
+  $('#edSend') && ($('#edSend').onclick = () => save({ status: 'por_aprobar' }));
+  $('#edDel') && ($('#edDel').onclick = async () => { if (!confirmDel()) return; await api('/api/plan/' + it.id, { method: 'DELETE' }); close(); toast('Borrado'); drawCal(d, slug); });
+}
+// Doble clic para borrar (sin diálogos del navegador)
+let delArm = 0;
+function confirmDel() { if (Date.now() - delArm < 3000) return true; delArm = Date.now(); toast('Presiona “Borrar” otra vez para confirmar'); return false; }
+
+// ---------------- router ----------------
+async function route() {
+  const m = location.hash.match(/^#\/c\/([a-z0-9-]+)(?:\/(sitio|redes|cambios))?/);
+  const sameClient = m && route._last === m[1];
+  try { m ? await renderClient(m[1], m[2] || 'sitio') : await renderOverview(); if (!sameClient) window.scrollTo(0, 0); route._last = m ? m[1] : null; }
+  catch (e) { $('#app').innerHTML = `<div class="empty">No se pudo cargar: ${esc(e.message)}</div>`; }
+}
+window.addEventListener('hashchange', route);
+window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { if (location.hash.startsWith('#/c/')) route(); }, 250); });
+$('#syncBtn').addEventListener('click', async (e) => {
+  const b = e.currentTarget; b.disabled = true; b.textContent = 'Actualizando…';
+  const m = location.hash.match(/^#\/c\/([a-z0-9-]+)/);
+  try {
+    const r = await api('/api/sync' + (m ? '?client=' + m[1] : ''), { method: 'POST' });
+    const fails = Object.values(r).flat().filter((x) => !x.ok);
+    toast(fails.length ? `Listo, con ${fails.length} error(es). Revisa la bitácora.` : 'Datos al día');
+    await route();
+  } catch (err) { toast(err.message); }
+  b.disabled = false; b.textContent = 'Actualizar datos';
+});
+api('/api/me').then((u) => {
+  ME = (u.email || '').split('@')[0].split(/[._-]/)[0];
+  ME = ME ? ME[0].toUpperCase() + ME.slice(1) : '';
+  $('#user').textContent = u.email; $('#avatar').textContent = (u.email || '?')[0]; $('#avatar').title = u.email;
+}).catch(() => {}).finally(route);
+</script>
+</body>
+</html>

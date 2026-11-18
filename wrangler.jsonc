@@ -1,0 +1,40 @@
+// Strove Hub — reportes y operación de los sitios de clientes.
+// Deploy: Cloudflare Workers Builds conectado a este repo (rama main).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "strove-hub",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+
+  // Logos de cada marca (public/logos/<slug>.png). Los que subes desde el Hub se guardan en la base.
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  // Base de datos con todos los números y solicitudes.
+  // Crear una vez:  npx wrangler d1 create strove-hub
+  // y pegar aquí el database_id que te devuelve.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "strove-hub", "database_id": "PEGA_AQUI_EL_ID" }
+  ],
+
+  "triggers": {
+    "crons": [
+      "0 * * * *",   // cada hora: ¿el sitio está arriba?
+      "0 10 * * *"   // 4:00 am Guadalajara: datos de GA4, Search Console y GitHub
+    ]
+  },
+
+  "vars": {
+    // Equipo de Cloudflare Zero Trust (lo que va antes de .cloudflareaccess.com)
+    "ACCESS_TEAM": "strove",
+    // Audience (AUD) de la aplicación de Access. Se copia del panel de Zero Trust.
+    "ACCESS_AUD": "",
+    // URL pública del Hub (para armar los links del formulario de clientes)
+    "HUB_URL": "https://strove-hub.TU-SUBDOMINIO.workers.dev"
+  }
+
+  // Secretos (no van aquí, se cargan con `npx wrangler secret put NOMBRE`):
+  //   GOOGLE_SA_KEY   JSON completo de la cuenta de servicio de Google
+  //   GITHUB_TOKEN    token fine-grained de GitHub (Issues: lectura/escritura, Contents y Checks: lectura)
+  //   FORM_SECRET     cualquier texto largo y aleatorio (firma los links del formulario)
+}

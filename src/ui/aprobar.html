@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Contenido por aprobar · {{CLIENT}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0A0A0A;--card:#141414;--line:#262626;--txt:#F4F2EE;--mut:#8C8A86;--pur:#534AB7;--pur2:#8B83E6;--org:#F25C2A;--grn:#3DDC84;--yel:#FFD23F}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--txt);font-family:Montserrat,system-ui,sans-serif;padding:28px 16px 60px}
+  .wrap{max-width:560px;margin:0 auto}
+  .brands{display:flex;align-items:center;gap:14px}
+  .brands img{max-height:44px;max-width:170px;object-fit:contain}
+  .x{color:var(--mut);font-family:'Space Mono',monospace}
+  .logo{font-weight:900;font-size:22px;letter-spacing:-.04em;display:inline-block}
+  .logo:after{content:"";display:block;height:3px;margin-top:2px;background:linear-gradient(90deg,#4F8EF7,#00D4FF,#00E676,#FFE600,#FF6B00,#E63329)}
+  .eyebrow{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut)}
+  h1{font-weight:900;font-size:clamp(30px,8vw,44px);line-height:.95;letter-spacing:-.03em;text-transform:lowercase;margin:12px 0 10px}
+  .lead{color:var(--mut);line-height:1.5;margin-bottom:22px}
+  .who{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:22px}
+  .who input{flex:1;background:none;border:0;color:var(--txt);font:600 15px Montserrat,sans-serif}
+  .who input:focus{outline:none}
+  .group{margin:26px 0 12px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:16px}
+  .item img{display:block;width:100%;max-height:560px;object-fit:cover;background:#000}
+  .noimg{aspect-ratio:4/3;display:grid;place-items:center;color:var(--mut);font-family:'Space Mono',monospace;font-size:12px;background:#0f0f0f}
+  .body{padding:16px 18px 18px}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .tag{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:4px 8px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
+  .tag.st{color:var(--yel);border-color:rgba(255,210,63,.3)}
+  .tag.ok{color:var(--grn);border-color:rgba(61,220,132,.3)}
+  .tag.ch{color:var(--org);border-color:rgba(242,92,42,.35)}
+  .title{font-weight:900;font-size:19px;letter-spacing:-.02em;margin-bottom:8px}
+  .copy{white-space:pre-wrap;line-height:1.55;font-size:14px;color:#dedbd5}
+  .note{margin-top:12px;font-size:13px;color:var(--mut);border-left:3px solid var(--org);padding-left:10px}
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  button{border:0;border-radius:999px;padding:14px;font:900 13px Montserrat,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+  .yes{background:var(--grn);color:#0A0A0A}
+  .no{background:none;border:1px solid var(--line);color:var(--txt)}
+  textarea{width:100%;margin-top:12px;background:#0f0f0f;border:1px solid var(--line);border-radius:10px;color:var(--txt);font:500 14px Montserrat,sans-serif;padding:12px;min-height:90px;display:none}
+  textarea:focus{outline:none;border-color:var(--pur)}
+  .send{display:none;width:100%;margin-top:10px;background:var(--org);color:#0A0A0A}
+  .empty{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px 20px;text-align:center;color:var(--mut);line-height:1.6}
+  .empty b{color:var(--txt);display:block;font-size:18px;margin-bottom:6px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:12px 18px;border-radius:999px;font-weight:700;font-size:13px;opacity:0;transition:.2s;pointer-events:none;max-width:90vw}
+  .toast.on{opacity:1}
+  .foot{margin-top:36px;font-family:'Space Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.1em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brands"><img src="{{LOGO}}" alt="{{CLIENT}}" onerror="this.remove()"><span class="x">×</span><span class="logo">strove</span></div>
+  <h1>tu contenido.</h1>
+  <p class="lead">Revisa los posts que preparamos. Apruébalos o dinos qué cambiar; nada se publica sin tu visto bueno.</p>
+  <label class="who"><span class="eyebrow">Tu nombre</span><input id="name" maxlength="80" autocomplete="name" placeholder="Para saber quién aprobó"></label>
+  <div id="list"><div class="empty">Cargando…</div></div>
+  <div class="foot">STROVE · HOLA@STROVE.MX</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const BASE = '{{BASE}}', K = '{{K}}';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const FMT = { post:'Post', carrusel:'Carrusel', reel:'Reel', historia:'Historia' };
+const NET = { instagram:'Instagram', facebook:'Facebook', ambas:'Instagram + Facebook' };
+const day = (d, t) => new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' }) + (t ? ' · ' + t : '');
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 3000); }
+try { $('#name').value = localStorage.getItem('strove_name') || ''; } catch {}
+$('#name').addEventListener('change', (e) => { try { localStorage.setItem('strove_name', e.target.value); } catch {} });
+
+function card(it) {
+  const pending = it.status === 'por_aprobar' || it.status === 'cambios';
+  const tag = it.status === 'por_aprobar' ? '<span class="tag st">Por aprobar</span>'
+    : it.status === 'cambios' ? '<span class="tag ch">Pediste cambios</span>' : '<span class="tag ok">Aprobado ✓</span>';
+  return `<article class="item" data-id="${it.id}">
+    ${it.has_image ? `<img src="${BASE}/img/${it.id}?k=${encodeURIComponent(K)}" alt="" loading="lazy">` : '<div class="noimg">Imagen en camino</div>'}
+    <div class="body">
+      <div class="meta">${tag}<span class="tag">${esc(FMT[it.format] || it.format)}</span><span class="tag">${esc(NET[it.network] || it.network)}</span></div>
+      <div class="eyebrow" style="margin-bottom:8px">${esc(day(it.date, it.time))}</div>
+      ${it.title ? `<div class="title">${esc(it.title)}</div>` : ''}
+      <div class="copy">${esc(it.copy || '')}</div>
+      ${it.client_comment ? `<div class="note">${esc(it.reviewed_by || 'Tú')}: ${esc(it.client_comment)}</div>` : ''}
+      ${pending ? `<div class="acts"><button class="yes" data-a="aprobar">Aprobar</button><button class="no" data-a="cambios">Pedir cambios</button></div>
+        <textarea placeholder="¿Qué cambiamos? Ej. el copy, la foto, la fecha…" maxlength="1500"></textarea>
+        <button class="send">Enviar cambios</button>` : ''}
+    </div></article>`;
+}
+
+async function load() {
+  const res = await fetch(`${BASE}/items?k=${encodeURIComponent(K)}`);
+  const { items = [] } = await res.json();
+  const pend = items.filter((i) => i.status === 'por_aprobar' || i.status === 'cambios');
+  const done = items.filter((i) => !pend.includes(i));
+  $('#list').innerHTML =
+    (pend.length ? `<div class="eyebrow group">Por revisar · ${pend.length}</div>${pend.map(card).join('')}`
+      : '<div class="empty"><b>Todo al día.</b>No hay posts pendientes de aprobar.</div>') +
+    (done.length ? `<div class="eyebrow group">Ya aprobados</div>${done.map(card).join('')}` : '');
+}
+
+async function send(id, action, comment) {
+  const name = $('#name').value.trim();
+  if (!name) { $('#name').focus(); toast('Escribe tu nombre arriba'); return; }
+  const res = await fetch(`${BASE}/${id}?k=${encodeURIComponent(K)}`, { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify({ action, comment, name }) });
+  const r = await res.json().catch(() => ({}));
+  if (!res.ok) { toast(r.error || 'No se pudo guardar'); return; }
+  toast(action === 'aprobar' ? 'Aprobado. ¡Gracias!' : 'Listo, lo ajustamos');
+  load();
+}
+
+$('#list').addEventListener('click', (e) => {
+  const art = e.target.closest('.item'); if (!art) return;
+  const id = art.dataset.id;
+  if (e.target.dataset.a === 'aprobar') send(id, 'aprobar');
+  if (e.target.dataset.a === 'cambios') { $('textarea', art).style.display = 'block'; $('.send', art).style.display = 'block'; $('textarea', art).focus(); }
+  if (e.target.classList.contains('send')) send(id, 'cambios', $('textarea', art).value);
+});
+load().catch(() => $('#list').innerHTML = '<div class="empty">No se pudo cargar. Intenta de nuevo.</div>');
+</script>
+</body>
+</html>
