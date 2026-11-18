@@ -2,7 +2,7 @@
 import { CLIENTS } from './clients.js';
 import { fetchGA4, fetchGSC } from './google.js';
 import { fetchDeploy, issueState, createIssue } from './github.js';
-import { fetchInstagram, fetchAds } from './meta.js';
+import { fetchInstagram, fetchAds, resolveMeta, fetchScheduledFacebook } from './meta.js';
 
 const now = () => new Date().toISOString();
 
@@ -25,6 +25,15 @@ async function saveBreakdown(env, client, kind, items) {
   items.forEach((it, i) => stmts.push(
     env.DB.prepare('INSERT INTO breakdowns (client, kind, rank, label, value, extra, updated_at) VALUES (?,?,?,?,?,?,?)')
       .bind(client, kind, i + 1, it.label, it.value, it.extra ? JSON.stringify(it.extra) : null, ts)));
+  await env.DB.batch(stmts);
+}
+
+async function saveScheduled(env, client, network, items) {
+  const ts = now();
+  const stmts = [env.DB.prepare('DELETE FROM scheduled_posts WHERE client = ? AND network = ?').bind(client, network)];
+  for (const it of items) stmts.push(env.DB.prepare(
+    'INSERT INTO scheduled_posts (client, network, id, caption, thumb, scheduled_at, local_date, time, updated_at) VALUES (?,?,?,?,?,?,?,?,?)')
+    .bind(client, network, it.id, it.caption, it.thumb, it.scheduled_at, it.local_date, it.time, ts));
   await env.DB.batch(stmts);
 }
 
@@ -130,8 +139,14 @@ export async function syncClient(env, client, days = 10) {
     await saveMetrics(env, client.slug, 'gsc', rows);
     await saveBreakdown(env, client.slug, 'queries', queries);
   });
-  if (client.igUserId) await step('instagram', async () => {
-    const { rows, posts } = await fetchInstagram(env, client, days);
+  if (client.social !== false && (client.igUserId || client.igUsername || client.fbPageId)) await step('instagram', async () => {
+    const meta = await resolveMeta(env, client);
+    const c = { ...client, igUserId: meta.igUserId };
+    try {
+      const sched = await fetchScheduledFacebook(env, meta.pageId, meta.pageToken);
+      await saveScheduled(env, client.slug, 'facebook', sched);
+    } catch (e) { await log(env, client.slug, 'programados', false, e.message); }
+    const { rows, posts } = await fetchInstagram(env, c, days);
     await saveMetrics(env, client.slug, 'ig', rows);
     await savePosts(env, client.slug, posts);
     await matchPlan(env, client);

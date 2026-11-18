@@ -99,6 +99,57 @@ async function series(env, slug, metrics, days) {
 const logoUrl = (slug, v) => `/logo/${slug}${v ? '?v=' + encodeURIComponent(v) : ''}`;
 const statusOf = (env, slug) => env.DB.prepare('SELECT * FROM site_status WHERE client = ?').bind(slug).first();
 
+// ---------- lo urgente ----------
+const LEVEL = { alta: 0, media: 1, baja: 2 };
+const SRC_NAME = { ga4: 'Analytics', gsc: 'Search Console', github: 'GitHub', instagram: 'Instagram', pauta: 'Meta Ads', programados: 'lo programado en Facebook', uptime: 'el sitio', solicitudes: 'solicitudes' };
+const mxToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
+const dLabel = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+async function urgentItems(env) {
+  const today = mxToday(), in3 = shift(today, 3), in6 = shift(today, 6), w2a = shift(today, 7), w2b = shift(today, 13);
+  const out = [];
+  const add = (c, level, text, tab) => out.push({ client: c.slug, name: c.name, color: c.color, level, text, link: `#/c/${c.slug}/${tab}` });
+  for (const c of CLIENTS) {
+    const st = await statusOf(env, c.slug);
+    if (st?.checked_at && !(st.http_status >= 200 && st.http_status < 400)) add(c, 'alta', st.http_status ? `El sitio responde con error ${st.http_status}` : 'El sitio no responde', 'sitio');
+    if (st?.deploy_state === 'failure') add(c, 'alta', 'La última publicación del sitio falló', 'sitio');
+
+    const { results: logs } = await env.DB.prepare('SELECT source, ok, message FROM sync_log WHERE client = ? ORDER BY id DESC LIMIT 20').bind(c.slug).all();
+    const seen = new Set();
+    for (const l of logs) { if (seen.has(l.source)) continue; seen.add(l.source); if (!l.ok) add(c, 'media', `Falla la conexión con ${SRC_NAME[l.source] || l.source}: ${String(l.message).slice(0, 80)}`, l.source === 'instagram' || l.source === 'pauta' || l.source === 'programados' ? 'redes' : 'sitio'); }
+
+    if (c.social !== false) {
+      const q = (a, z) => env.DB.prepare(
+        `SELECT (SELECT COUNT(*) FROM content_plan WHERE client = ?1 AND date BETWEEN ?2 AND ?3 AND status IN ('por_aprobar','cambios','aprobado','programado'))
+              + (SELECT COUNT(*) FROM scheduled_posts WHERE client = ?1 AND local_date BETWEEN ?2 AND ?3) AS n`).bind(c.slug, a, z).first();
+      const thisWeek = (await q(today, in6)).n, nextWeek = (await q(w2a, w2b)).n;
+      if (thisWeek === 0) add(c, 'alta', 'Sin posts programados para los próximos 7 días', 'redes');
+      else if (thisWeek === 1) add(c, 'media', 'Solo 1 post en los próximos 7 días', 'redes');
+      if (nextWeek === 0) add(c, thisWeek === 0 ? 'media' : 'media', 'La semana siguiente está vacía: hay que planear contenido', 'redes');
+
+      const { results: plan } = await env.DB.prepare(
+        "SELECT date, title, format, status FROM content_plan WHERE client = ? AND date BETWEEN ? AND ? AND status IN ('por_aprobar','cambios','aprobado','borrador') ORDER BY date")
+        .bind(c.slug, today, in3).all();
+      for (const p of plan) {
+        const what = p.title || p.format;
+        if (p.status === 'cambios') add(c, 'alta', `El cliente pidió cambios en "${what}" (sale ${dLabel(p.date)})`, 'redes');
+        else if (p.status === 'por_aprobar') add(c, 'alta', `"${what}" sigue sin aprobar y sale ${dLabel(p.date)}`, 'redes');
+        else if (p.status === 'aprobado') add(c, 'alta', `"${what}" ya está aprobado pero falta programarlo en Meta (sale ${dLabel(p.date)})`, 'redes');
+        else if (p.status === 'borrador') add(c, 'media', `"${what}" sigue en borrador y sale ${dLabel(p.date)}`, 'redes');
+      }
+      const ch = await env.DB.prepare("SELECT COUNT(*) AS n FROM content_plan WHERE client = ? AND status = 'cambios' AND date > ?").bind(c.slug, in3).first();
+      if (ch.n) add(c, 'media', `${ch.n} post${ch.n > 1 ? 's' : ''} con cambios pedidos por el cliente`, 'redes');
+    }
+
+    const { results: reqs } = await env.DB.prepare("SELECT title, created_at FROM requests WHERE client = ? AND status = 'nueva' ORDER BY id").bind(c.slug).all();
+    for (const r of reqs) {
+      const hrs = (Date.now() - Date.parse(r.created_at)) / 3600_000;
+      add(c, hrs > 48 ? 'alta' : 'media', `Solicitud sin atender${hrs > 24 ? ` (${Math.floor(hrs / 24)} d)` : ''}: "${String(r.title).slice(0, 70)}"`, 'cambios');
+    }
+  }
+  return out.sort((a, z) => LEVEL[a.level] - LEVEL[z.level]);
+}
+
 async function overview(env) {
   const { results: open } = await env.DB.prepare(
     "SELECT client, COUNT(*) AS n FROM requests WHERE status NOT IN ('publicada','descartada') GROUP BY client").all();
@@ -117,11 +168,11 @@ async function overview(env) {
       spark: await series(env, c.slug, ['sessions', 'clicks'], 28),
       status: await statusOf(env, c.slug),
       openRequests: openBy[c.slug] || 0,
-      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!c.igUserId, social: c.social !== false, repo: !!c.repo },
+      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!(c.igUserId || c.igUsername || c.fbPageId), social: c.social !== false, repo: !!c.repo },
       plan: { aprobar: planBy[c.slug]?.aprobar || 0, cambios: planBy[c.slug]?.cambios || 0, proximos: planBy[c.slug]?.proximos || 0 },
     });
   }
-  return { clients, lastSync: lastSync?.t || null };
+  return { clients, lastSync: lastSync?.t || null, urgent: await urgentItems(env) };
 }
 
 async function clientDetail(env, c) {
@@ -139,7 +190,7 @@ async function clientDetail(env, c) {
   return {
     client: { slug: c.slug, name: c.name, url: c.url, color: c.color, repo: c.repo, leadEvent: c.leadEvent,
       logo: logoUrl(c.slug, (await env.DB.prepare('SELECT updated_at FROM logos WHERE client = ?').bind(c.slug).first())?.updated_at),
-      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!c.igUserId, ads: !!c.adAccountId, social: c.social !== false, repo: !!c.repo }, platform: c.platform || 'github' },
+      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!(c.igUserId || c.igUsername || c.fbPageId), ads: !!c.adAccountId, social: c.social !== false, repo: !!c.repo }, platform: c.platform || 'github' },
     kpis: await kpis(env, c.slug),
     series: await series(env, c.slug, ['sessions', 'users', 'leads', 'clicks', 'impressions', 'position', 'reach', 'followers', 'ad_spend', 'ad_messages'], 90),
     posts,
@@ -353,7 +404,11 @@ export default {
       if (path === '/api/plan' && request.method === 'GET') {
         const c = getClient(url.searchParams.get('client'));
         if (!c) return json({ error: 'Cliente no encontrado' }, 404);
-        return json({ items: await planList(env, c.slug, url.searchParams.get('from') || '2000-01-01', url.searchParams.get('to') || '2999-12-31') });
+        const from = url.searchParams.get('from') || '2000-01-01', to = url.searchParams.get('to') || '2999-12-31';
+        const { results: scheduled } = await env.DB.prepare(
+          'SELECT network, id, caption, thumb, local_date, time FROM scheduled_posts WHERE client = ? AND local_date BETWEEN ? AND ? ORDER BY local_date, time')
+          .bind(c.slug, from, to).all();
+        return json({ items: await planList(env, c.slug, from, to), scheduled });
       }
       if (path === '/api/plan' && request.method === 'POST') {
         const body = await request.json();

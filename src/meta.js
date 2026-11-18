@@ -22,6 +22,7 @@ const todayLocal = () => localDate(new Date().toISOString());
 
 export async function fetchInstagram(env, client, days) {
   const rows = [];
+  if (!client.igUserId) throw new Error('Sin cuenta de Instagram');
   // Seguidores: Meta solo da el número de hoy; el historial lo vamos guardando nosotros cada noche
   const profile = await graph(env, client.igUserId, { fields: 'followers_count,media_count,username' });
   rows.push({ date: todayLocal(), metric: 'followers', value: profile.followers_count || 0 });
@@ -80,4 +81,33 @@ export async function fetchAds(env, client, days) {
     rows.push({ date, metric: 'ad_messages', value: msg ? +msg.value : 0 });
   }
   return { rows };
+}
+
+// Encuentra la cuenta de Instagram y la página de Facebook del cliente a partir de su @,
+// entre las cuentas que el usuario del sistema de Strove tiene asignadas.
+export async function resolveMeta(env, client) {
+  const data = await graph(env, 'me/accounts', { fields: 'id,name,access_token,instagram_business_account{id,username}', limit: 100 });
+  const want = String(client.igUsername || '').replace(/^@/, '').toLowerCase();
+  const page = (data.data || []).find((p) =>
+    (client.fbPageId && p.id === client.fbPageId) ||
+    (want && p.instagram_business_account?.username?.toLowerCase() === want) ||
+    (client.igUserId && p.instagram_business_account?.id === client.igUserId));
+  if (!page) throw new Error(`No encuentro la cuenta ${want ? '@' + want : ''} entre las asignadas al usuario del sistema`);
+  return { igUserId: page.instagram_business_account?.id || client.igUserId || null, pageId: page.id, pageToken: page.access_token, pageName: page.name };
+}
+
+// Lo que ya está programado en Facebook (Business Suite). Instagram no lo expone por API.
+export async function fetchScheduledFacebook(env, pageId, pageToken) {
+  const url = new URL(`https://graph.facebook.com/${ver(env)}/${pageId}/scheduled_posts`);
+  url.searchParams.set('fields', 'id,message,scheduled_publish_time,full_picture');
+  url.searchParams.set('limit', '50');
+  url.searchParams.set('access_token', pageToken);
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(`Meta (programados): ${data.error?.message || res.status}`);
+  return (data.data || []).map((p) => {
+    const iso = new Date((p.scheduled_publish_time || 0) * 1000).toISOString();
+    return { id: p.id, caption: (p.message || '').slice(0, 600), thumb: p.full_picture || null, scheduled_at: iso, local_date: localDate(iso),
+      time: new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso)) };
+  });
 }

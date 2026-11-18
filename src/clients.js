@@ -15,8 +15,8 @@ export const CLIENTS = [
     clarityId: 'zf9o0ztr0m',
     cms: 'pages-cms',
     // Meta (desde el Business Manager de Strove)
-    igUserId: '',                   // ID de la cuenta de Instagram profesional
-    igUsername: '',                 // @ sin arroba, solo para el link
+    igUsername: '',                 // @ de Instagram sin arroba: con eso el Hub encuentra la cuenta solo
+    igUserId: '',                   // opcional: se detecta solo a partir del @
     adAccountId: '',                // act_… sin el "act_"; vacío si no hay pauta
     color: '#534AB7',
   },
@@ -32,7 +32,7 @@ export const CLIENTS = [
     clarityId: '',                  // pendiente
     cms: '',
     igUserId: '',
-    igUsername: '',
+    igUsername: 'lentesolymas',
     adAccountId: '',
     color: '#F25C2A',
   },

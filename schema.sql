@@ -118,3 +118,17 @@ CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Lo que ya está programado en Meta (hoy: Facebook; Instagram no lo expone por API)
+CREATE TABLE IF NOT EXISTS scheduled_posts (
+  client     TEXT NOT NULL,
+  network    TEXT NOT NULL,
+  id         TEXT NOT NULL,
+  caption    TEXT,
+  thumb      TEXT,
+  scheduled_at TEXT,
+  local_date TEXT,
+  time       TEXT,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (client, network, id)
+);
