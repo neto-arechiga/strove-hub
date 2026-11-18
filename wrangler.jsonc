@@ -15,7 +15,7 @@
   // Se crea en Cloudflare → Storage & Databases → D1 → Create ("strove-hub") y se pega aquí su ID.
   // Las tablas se crean solas al primer arranque.
   "d1_databases": [
-    { "binding": "DB", "database_name": "strove-hub", "database_id": "PEGA_AQUI_EL_ID" }
+    { "binding": "DB", "database_name": "strove-hub", "database_id": "fa234bcf-2888-4d2d-bbac-b5a136910d46" }
   ],
 
   "triggers": {
