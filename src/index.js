@@ -117,7 +117,7 @@ async function overview(env) {
       spark: await series(env, c.slug, ['sessions', 'clicks'], 28),
       status: await statusOf(env, c.slug),
       openRequests: openBy[c.slug] || 0,
-      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!c.igUserId },
+      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!c.igUserId, social: c.social !== false, repo: !!c.repo },
       plan: { aprobar: planBy[c.slug]?.aprobar || 0, cambios: planBy[c.slug]?.cambios || 0, proximos: planBy[c.slug]?.proximos || 0 },
     });
   }
@@ -139,7 +139,7 @@ async function clientDetail(env, c) {
   return {
     client: { slug: c.slug, name: c.name, url: c.url, color: c.color, repo: c.repo, leadEvent: c.leadEvent,
       logo: logoUrl(c.slug, (await env.DB.prepare('SELECT updated_at FROM logos WHERE client = ?').bind(c.slug).first())?.updated_at),
-      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!c.igUserId, ads: !!c.adAccountId } },
+      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!c.igUserId, ads: !!c.adAccountId, social: c.social !== false, repo: !!c.repo }, platform: c.platform || 'github' },
     kpis: await kpis(env, c.slug),
     series: await series(env, c.slug, ['sessions', 'users', 'leads', 'clicks', 'impressions', 'position', 'reach', 'followers', 'ad_spend', 'ad_messages'], 90),
     posts,

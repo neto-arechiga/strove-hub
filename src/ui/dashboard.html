@@ -319,7 +319,7 @@ function card(c) {
   if (!c.setup.ga4) todo.push('Falta conectar Analytics');
   if (!c.setup.clarity) todo.push('Falta Clarity');
   if (!c.setup.cms) todo.push('Sin panel para editar');
-  if (!c.setup.ig) todo.push('Falta conectar Instagram');
+  if (c.setup.social && !c.setup.ig) todo.push('Falta conectar Instagram');
   const k = (m) => `<div><div class="l">${LABEL[m]}</div><div class="v ${c.kpis[m] ? '' : 'na'}">${fmt(c.kpis[m]?.cur, m)}</div>${c.kpis[m] ? delta(c.kpis[m], m) : ''}</div>`;
   return `<article class="card" data-slug="${esc(c.slug)}" style="--c:${esc(c.color)}">
     <div class="card-h">
@@ -357,7 +357,7 @@ async function renderClient(slug, tab = 'sitio') {
 
     <nav class="ctabs" id="ctabs">
       <a href="#/c/${esc(slug)}/sitio" data-t="sitio">Sitio web</a>
-      <a href="#/c/${esc(slug)}/redes" data-t="redes">Redes y contenido</a>
+      ${c.setup.social ? `<a href="#/c/${esc(slug)}/redes" data-t="redes">Redes y contenido</a>` : ''}
       <a href="#/c/${esc(slug)}/cambios" data-t="cambios">Cambios al sitio${openReq ? `<b>${openReq}</b>` : ''}</a>
     </nav>
 
@@ -366,7 +366,7 @@ async function renderClient(slug, tab = 'sitio') {
     <section class="strip">
       <div><div class="eyebrow">Sitio</div><div class="v"><i class="dot ${dc}" style="display:inline-block;margin-right:8px"></i>${dl}</div><div class="s">${s.response_ms ? s.response_ms + ' ms · ' : ''}${esc(ago(s.checked_at))}</div></div>
       <div><div class="eyebrow">Último cambio</div><div class="v" title="${esc(s.commit_msg)}">${esc(s.commit_msg || '—')}</div><div class="s">${s.commit_sha ? esc(s.commit_sha) + ' · ' : ''}${esc(ago(s.commit_date))}</div></div>
-      <div><div class="eyebrow">Publicación</div><div class="v">${{success:'Publicado ✓',failure:'Falló, revisar',pending:'Publicando…'}[s.deploy_state] || 'Sin dato'}</div><div class="s">Último cambio en línea</div></div>
+      <div><div class="eyebrow">Publicación</div><div class="v">${d.client.platform === 'framer' ? 'Framer' : ({success:'Publicado ✓',failure:'Falló, revisar',pending:'Publicando…'}[s.deploy_state] || 'Sin dato')}</div><div class="s">${d.client.platform === 'framer' ? 'Se publica desde Framer' : 'Último cambio en línea'}</div></div>
       <div><div class="eyebrow">Qué cuenta como lead</div><div class="v">${esc(LEAD_NAME[c.leadEvent] || c.leadEvent || '—')}</div><div class="s">Se mide en Analytics</div></div>
     </section>
 
@@ -405,7 +405,7 @@ async function renderClient(slug, tab = 'sitio') {
         <textarea name="detail" placeholder="Detalle, textos nuevos, links… (lo que te mandó por WhatsApp)"></textarea>
         <div class="row">
           <input type="text" name="requester" placeholder="Quién lo pidió" maxlength="120" style="flex:1;min-width:160px">
-          <label class="chk" title="Crea la tarea en el repo del sitio para hacer el cambio"><input type="checkbox" name="issue" checked> Crear tarea en GitHub</label>
+          ${c.setup.repo ? '<label class="chk" title="Crea la tarea en el repo del sitio para hacer el cambio"><input type="checkbox" name="issue" checked> Crear tarea en GitHub</label>' : '<span class="chk">Sitio en Framer: el cambio se hace en Framer</span>'}
           <button class="btn pri" type="submit">Agregar</button>
         </div>
       </form>
@@ -439,7 +439,7 @@ async function renderClient(slug, tab = 'sitio') {
   $('#newReq').addEventListener('submit', async (e) => {
     e.preventDefault(); const f = e.target; const b = f.querySelector('button'); b.disabled = true;
     try {
-      const r = await api('/api/requests', { method: 'POST', body: JSON.stringify({ client: slug, title: f.title.value, detail: f.detail.value, requester: f.requester.value, createIssue: f.issue.checked }) });
+      const r = await api('/api/requests', { method: 'POST', body: JSON.stringify({ client: slug, title: f.title.value, detail: f.detail.value, requester: f.requester.value, createIssue: !!(f.issue && f.issue.checked) }) });
       toast(r.warning || 'Solicitud agregada'); await renderClient(slug, currentTab());
     } catch (err) { toast(err.message); b.disabled = false; }
   });

@@ -36,6 +36,20 @@ export const CLIENTS = [
     adAccountId: '',
     color: '#F25C2A',
   },
+  {
+    slug: 'mm-estudio-interior',
+    name: 'MM Estudio Interior',
+    url: 'https://mmestudiointerior.com',
+    platform: 'framer',             // sitio hecho en Framer: sin repo de GitHub
+    repo: '',
+    ga4PropertyId: '',              // pendiente: el admin de su Analytics debe agregar al robot como Lector
+    gscSite: 'sc-domain:mmestudiointerior.com', // pendiente: el propietario debe agregar al robot
+    leadEvent: '',
+    clarityId: 'vyaifik3h2',
+    cms: 'framer',
+    social: false,                  // no le llevamos redes
+    color: '#C9A27E',
+  },
 ];
 
 export const getClient = (slug) => CLIENTS.find((c) => c.slug === slug);
@@ -48,8 +62,9 @@ export function clientLinks(c) {
   if (c.clarityId) links.push({ label: 'Clarity', href: `https://clarity.microsoft.com/projects/view/${c.clarityId}/dashboard` });
   if (c.url) links.push({ label: 'Bing', href: `https://www.bing.com/webmasters/home?siteUrl=${encodeURIComponent(c.url + '/')}` });
   if (c.igUsername) links.push({ label: 'Instagram', href: `https://www.instagram.com/${c.igUsername}/` });
-  links.push({ label: 'Business Suite', href: 'https://business.facebook.com/latest/content_calendar' });
+  if (c.social !== false) links.push({ label: 'Business Suite', href: 'https://business.facebook.com/latest/content_calendar' });
   if (c.repo) links.push({ label: 'GitHub', href: `https://github.com/${c.repo}` });
+  if (c.cms === 'framer') links.push({ label: 'Editar en Framer', href: 'https://framer.com/projects/' });
   if (c.cms === 'pages-cms') links.push({ label: 'Editar contenido', href: `https://app.pagescms.org/${c.repo}/${c.branch || 'main'}` });
   return links;
 }
