@@ -73,7 +73,7 @@ Crea un token **fine-grained** (Settings → Developer settings) con acceso a lo
 6. En `src/clients.js` llena `igUserId` (ID de la cuenta de Instagram profesional), `igUsername` y `adAccountId` (sin `act_`).
 
 ### 5. Link del formulario
-`npx wrangler secret put FORM_SECRET` y escribe cualquier frase larga. Si algún día la cambias, los links de los clientes dejan de servir y se generan nuevos.
+Ya no hace falta: el Hub genera solo la llave que firma los links de clientes y la guarda en la base de datos que comparten los dos Workers.
 
 ### 6. Acceso para el equipo de Strove
 1. Cloudflare **Zero Trust** → Access → Applications → **Add → Self-hosted**, dominio del Hub.
@@ -110,7 +110,7 @@ Los cambios de texto y fotos los puede hacer el cliente desde el panel de conten
 npm install
 npm run db:init:local && npm run db:demo:local   # datos de PRUEBA, solo en tu compu
 # (para ver la parte de redes en local, pon igUserId: 'demo' en clients.js; no lo subas así)
-printf 'DEV_BYPASS=1\nFORM_SECRET=local\n' > .dev.vars
+printf 'DEV_BYPASS=1\n' > .dev.vars
 npm run dev                                       # http://localhost:8787
 ```
 `DEV_BYPASS` salta el login. Nunca lo pongas en producción.

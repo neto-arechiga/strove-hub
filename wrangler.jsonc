@@ -41,5 +41,4 @@
   // Secretos (no van aquí, se cargan con `npx wrangler secret put NOMBRE`):
   //   GOOGLE_SA_KEY   JSON completo de la cuenta de servicio de Google
   //   GITHUB_TOKEN    token fine-grained de GitHub (Issues: lectura/escritura, Contents y Checks: lectura)
-  //   FORM_SECRET     cualquier texto largo y aleatorio (firma los links del formulario)
 }

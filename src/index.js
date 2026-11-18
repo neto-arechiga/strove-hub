@@ -132,7 +132,7 @@ async function clientDetail(env, c) {
   try {
     formUrl = `${env.CLIENT_URL || env.HUB_URL || ''}/solicitud/${c.slug}?k=${await formToken(env, c.slug)}`;
     approveUrl = `${env.CLIENT_URL || env.HUB_URL || ''}/aprobar/${c.slug}?k=${await formToken(env, c.slug, 'plan')}`;
-  } catch { /* sin FORM_SECRET */ }
+  } catch { /* sin base de datos lista */ }
   const { results: posts } = await env.DB.prepare(
     'SELECT id, type, caption, permalink, thumb, published_at, local_date, likes, comments, views, reach, saves, shares FROM posts WHERE client = ? ORDER BY published_at DESC LIMIT 18')
     .bind(c.slug).all();

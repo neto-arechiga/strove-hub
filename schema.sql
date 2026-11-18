@@ -112,3 +112,9 @@ CREATE TABLE IF NOT EXISTS content_plan (
   updated_at    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS plan_client_date ON content_plan (client, date);
+
+-- Ajustes internos (p. ej. la llave que firma los links de clientes)
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

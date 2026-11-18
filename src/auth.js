@@ -40,10 +40,24 @@ export async function accessUser(request, env) {
   }
 }
 
-// Link del formulario por cliente: firmado, no adivinable, no caduca.
+// Llave que firma los links de clientes. La genera el Hub al azar la primera vez y la guarda
+// en la base de datos que comparten los dos Workers (strove-hub y strove-clientes).
+// Nadie la escribe ni la tiene que recordar.
+let formKey = null;
+async function getFormKey(env) {
+  if (formKey) return formKey;
+  let row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'form_secret'").first();
+  if (!row) {
+    const rnd = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+    await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('form_secret', ?)").bind(rnd).run();
+    row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'form_secret'").first();
+  }
+  formKey = row.value;
+  return formKey;
+}
+
 export async function formToken(env, slug, purpose = 'form') {
-  if (!env.FORM_SECRET) throw new Error('Falta el secreto FORM_SECRET');
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.FORM_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(await getFormKey(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${purpose}:${slug}`)));
   return btoa(String.fromCharCode(...sig)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 22);
 }
