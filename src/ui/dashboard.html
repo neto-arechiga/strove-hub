@@ -24,8 +24,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* top bar */
 .top{position:sticky;top:0;z-index:5;background:rgba(10,10,10,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .top-in{max-width:1280px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:18px}
-.logo{font-weight:900;font-size:24px;letter-spacing:-.045em;text-decoration:none;line-height:1}
-.logo:after{content:"";display:block;height:3px;margin-top:3px;background:linear-gradient(90deg,#4F8EF7,#00D4FF,#00E676,#FFE600,#FF6B00,#E63329)}
+.logo{display:block;line-height:0}
+.logo img{height:36px;width:auto;display:block}
 .hubtag{font-family:var(--mono);font-size:11px;letter-spacing:.2em;border:1px solid var(--line);padding:4px 8px;border-radius:4px;color:var(--mut)}
 .top .sp{flex:1}
 .btn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:9px 16px;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;transition:.15s}
@@ -215,7 +215,7 @@ details.hist[open] summary{margin-bottom:14px}
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <a class="logo" href="#/">strove</a><span class="hubtag">HUB</span>
+  <a class="logo" href="#/" aria-label="Strove · inicio"><img src="/strove-logo.png" alt="strove · digital product design"></a><span class="hubtag">HUB</span>
   <div class="sp"></div>
   <span class="user" id="user"></span><span class="avatar" id="avatar" title=""></span>
   <button class="btn" id="syncBtn" title="Vuelve a pedir a Google y GitHub los datos más recientes">Actualizar datos</button>
