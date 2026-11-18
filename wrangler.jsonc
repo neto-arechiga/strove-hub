@@ -6,6 +6,8 @@
   "main": "src/index.js",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
+  "workers_dev": true,      // strove-hub.netoogare.workers.dev
+  "preview_urls": false,    // sin URLs de vista previa del Hub
 
   // Logos de cada marca (public/logos/<slug>.png). Los que subes desde el Hub se guardan en la base.
   "assets": { "directory": "./public", "binding": "ASSETS" },
@@ -31,7 +33,7 @@
     // Audience (AUD) de la aplicación de Access. Se copia del panel de Zero Trust.
     "ACCESS_AUD": "",
     // URL pública del Hub (para armar los links del formulario de clientes)
-    "HUB_URL": "https://strove-hub.TU-SUBDOMINIO.workers.dev"
+    "HUB_URL": "https://strove-hub.netoogare.workers.dev"
   }
 
   // Secretos (no van aquí, se cargan con `npx wrangler secret put NOMBRE`):
