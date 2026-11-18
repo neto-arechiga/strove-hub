@@ -1,7 +1,7 @@
 // Recolección: corre sola cada noche (cron) o a mano desde el Hub.
 import { CLIENTS } from './clients.js';
 import { fetchGA4, fetchGSC } from './google.js';
-import { fetchDeploy, issueState } from './github.js';
+import { fetchDeploy, issueState, createIssue } from './github.js';
 import { fetchInstagram, fetchAds } from './meta.js';
 
 const now = () => new Date().toISOString();
@@ -85,7 +85,20 @@ export async function syncDeploy(env, client) {
     .bind(client.slug, d.sha, d.message, d.date, d.state, now()).run();
 }
 
+// Solicitudes que llegaron por el formulario del cliente y aún no tienen tarea en GitHub
+export async function createPendingIssues(env, client) {
+  if (!client.repo || !env.GITHUB_TOKEN) return;
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM requests WHERE client = ? AND source = 'cliente' AND issue_number IS NULL AND status = 'nueva' ORDER BY id LIMIT 10")
+    .bind(client.slug).all();
+  for (const r of results) {
+    const issue = await createIssue(env, client, r);
+    await env.DB.prepare('UPDATE requests SET issue_number = ?, issue_url = ?, updated_at = ? WHERE id = ?').bind(issue.number, issue.url, now(), r.id).run();
+  }
+}
+
 export async function refreshRequests(env, client) {
+  await createPendingIssues(env, client);
   const { results } = await env.DB.prepare(
     "SELECT id, issue_number, status FROM requests WHERE client = ? AND issue_number IS NOT NULL AND status NOT IN ('publicada','descartada')")
     .bind(client.slug).all();
@@ -142,5 +155,8 @@ export async function syncAll(env, days) {
 }
 
 export async function uptimeAll(env) {
-  for (const c of CLIENTS) if (c.url) await checkUptime(env, c);
+  for (const c of CLIENTS) {
+    if (c.url) await checkUptime(env, c);
+    try { await createPendingIssues(env, c); } catch { /* se reintenta en la siguiente hora */ }
+  }
 }

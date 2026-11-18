@@ -301,7 +301,7 @@ async function handleForm(request, env, slug, url) {
   try {
     await addRequest(env, c, {
       title: fd.get('title'), detail: fd.get('detail'), requester: fd.get('name'),
-      source: 'cliente', createIssueToo: true,
+      source: 'cliente', createIssueToo: env.PUBLIC_ONLY !== '1', // en el Worker de clientes, la tarea la crea el Hub
     });
     return html(page('sent'));
   } catch {

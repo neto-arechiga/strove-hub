@@ -14,5 +14,5 @@
     { "binding": "DB", "database_name": "strove-hub", "database_id": "fa234bcf-2888-4d2d-bbac-b5a136910d46" }
   ],
   "vars": { "PUBLIC_ONLY": "1" }
-  // Secretos que necesita: FORM_SECRET (el MISMO valor que en strove-hub) y GITHUB_TOKEN (para crear la tarea de cada solicitud)
+  // Secreto que necesita: FORM_SECRET (el MISMO valor que en strove-hub). Las tareas en GitHub las crea el Hub.
 }
