@@ -29,7 +29,7 @@
 
   "vars": {
     // Equipo de Cloudflare Zero Trust (lo que va antes de .cloudflareaccess.com)
-    "ACCESS_TEAM": "strove",
+    "ACCESS_TEAM": "shy-lake-b933",
     // Audience (AUD) de la aplicación de Access. Se copia del panel de Zero Trust.
     "ACCESS_AUD": "",
     // URL pública del Hub (para armar los links del formulario de clientes)
