@@ -334,7 +334,7 @@ export default {
 
     try {
       if (path === '/' && request.method === 'GET') return html(dashboardHtml);
-      if (path === '/api/me') return json({ email: user });
+      if (path === '/api/me') return json({ email: user, version: env.CF_VERSION_METADATA?.id || null });
       if (path === '/api/overview') return json(await overview(env));
 
       const cm = path.match(/^\/api\/clients\/([a-z0-9-]+)$/);

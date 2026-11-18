@@ -12,6 +12,7 @@
   // Logos de cada marca (public/logos/<slug>.png). Los que subes desde el Hub se guardan en la base.
   "assets": { "directory": "./public", "binding": "ASSETS" },
   "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },  // para avisar cuando hay una versión nueva del Hub
 
   // Base de datos con todos los números y solicitudes.
   // Se crea en Cloudflare → Storage & Databases → D1 → Create ("strove-hub") y se pega aquí su ID.
