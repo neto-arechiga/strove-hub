@@ -9,10 +9,11 @@
 
   // Logos de cada marca (public/logos/<slug>.png). Los que subes desde el Hub se guardan en la base.
   "assets": { "directory": "./public", "binding": "ASSETS" },
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
 
   // Base de datos con todos los números y solicitudes.
-  // Crear una vez:  npx wrangler d1 create strove-hub
-  // y pegar aquí el database_id que te devuelve.
+  // Se crea en Cloudflare → Storage & Databases → D1 → Create ("strove-hub") y se pega aquí su ID.
+  // Las tablas se crean solas al primer arranque.
   "d1_databases": [
     { "binding": "DB", "database_name": "strove-hub", "database_id": "PEGA_AQUI_EL_ID" }
   ],

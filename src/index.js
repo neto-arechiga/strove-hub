@@ -6,6 +6,17 @@ import { createIssue } from './github.js';
 import dashboardHtml from './ui/dashboard.html';
 import formHtml from './ui/form.html';
 import approveHtml from './ui/aprobar.html';
+import schemaSql from '../schema.sql';
+
+// Crea las tablas que falten (la primera vez, o cuando agregamos algo nuevo). No borra nada.
+let schemaReady = false;
+async function ensureSchema(env) {
+  if (schemaReady) return;
+  const stmts = schemaSql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n')
+    .split(';').map((x) => x.trim()).filter(Boolean);
+  await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
+  schemaReady = true;
+}
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -301,6 +312,7 @@ async function handleForm(request, env, slug, url) {
 // ---------- router ----------
 export default {
   async fetch(request, env, ctx) {
+    await ensureSchema(env);
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
@@ -416,6 +428,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
+    await ensureSchema(env);
     if (event.cron === '0 10 * * *') ctx.waitUntil(syncAll(env, 10));
     else ctx.waitUntil(uptimeAll(env));
   },
