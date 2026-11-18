@@ -9,7 +9,7 @@ export const CLIENTS = [
     url: 'https://viajesaot.com',
     repo: 'neto-arechiga/viajesaot-web',
     branch: 'main',
-    ga4PropertyId: '',              // número de la propiedad (Admin → Detalles de la propiedad), no el G-…
+    ga4PropertyId: '564939121',     // número de la propiedad (Admin → Detalles de la propiedad), no el G-…
     gscSite: 'sc-domain:viajesaot.com',
     leadEvent: 'click_whatsapp',    // qué cuenta como lead
     clarityId: 'zf9o0ztr0m',
