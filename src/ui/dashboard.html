@@ -411,7 +411,8 @@ async function renderClient(slug, tab = 'sitio') {
     </section>
 
     </div>
-    <details data-tab="sitio" class="panel hist" ${d.logs.some((l) => !l.ok) ? 'open' : ''}><summary><h3>historial de actualizaciones</h3><span class="eyebrow">${d.logs.some((l) => !l.ok) ? '⚠ Hay algo por revisar' : 'Todo en orden · ver'}</span></summary>
+    ${(() => { const seen = new Set(); d._fail = d.logs.filter((l) => { if (seen.has(l.source)) return false; seen.add(l.source); return !l.ok; }).length; return ''; })()}
+    <details data-tab="sitio" class="panel hist" ${d._fail ? 'open' : ''}><summary><h3>historial de actualizaciones</h3><span class="eyebrow">${d._fail ? '⚠ Hay algo por revisar' : 'Todo en orden · ver'}</span></summary>
       ${d.logs.length ? `<div class="log">${d.logs.map((l) => `<span>${esc(new Date(l.run_at).toLocaleString('es-MX', { dateStyle:'short', timeStyle:'short' }))}</span><span>${esc(SRC[l.source] || l.source)}</span><span class="${l.ok ? '' : 'bad'}">${esc(l.ok ? 'Listo' : l.message)}</span>`).join('')}</div>`
         : '<div class="empty">Todavía no se han pedido datos. Presiona “Actualizar datos”.</div>'}
     </details>`;
