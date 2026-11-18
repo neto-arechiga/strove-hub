@@ -1,0 +1,18 @@
+// Worker PÚBLICO para clientes: solo /solicitud, /aprobar y /logo. Sin login y sin tareas programadas.
+// Mismo código y misma base de datos que el Hub.
+// En Cloudflare: Workers → Import repository → strove-hub → Deploy command: npx wrangler deploy -c wrangler.clientes.jsonc
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "strove-clientes",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "strove-hub", "database_id": "fa234bcf-2888-4d2d-bbac-b5a136910d46" }
+  ],
+  "vars": { "PUBLIC_ONLY": "1" }
+  // Secretos que necesita: FORM_SECRET (el MISMO valor que en strove-hub) y GITHUB_TOKEN (para crear la tarea de cada solicitud)
+}

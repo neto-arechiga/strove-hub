@@ -130,8 +130,8 @@ async function clientDetail(env, c) {
   const { results: logs } = await env.DB.prepare('SELECT run_at, source, ok, message FROM sync_log WHERE client = ? ORDER BY id DESC LIMIT 12').bind(c.slug).all();
   let formUrl = null, approveUrl = null;
   try {
-    formUrl = `${env.HUB_URL || ''}/solicitud/${c.slug}?k=${await formToken(env, c.slug)}`;
-    approveUrl = `${env.HUB_URL || ''}/aprobar/${c.slug}?k=${await formToken(env, c.slug, 'plan')}`;
+    formUrl = `${env.CLIENT_URL || env.HUB_URL || ''}/solicitud/${c.slug}?k=${await formToken(env, c.slug)}`;
+    approveUrl = `${env.CLIENT_URL || env.HUB_URL || ''}/aprobar/${c.slug}?k=${await formToken(env, c.slug, 'plan')}`;
   } catch { /* sin FORM_SECRET */ }
   const { results: posts } = await env.DB.prepare(
     'SELECT id, type, caption, permalink, thumb, published_at, local_date, likes, comments, views, reach, saves, shares FROM posts WHERE client = ? ORDER BY published_at DESC LIMIT 18')
@@ -325,6 +325,9 @@ export default {
     const lg = path.match(/^\/logo\/([a-z0-9-]+)$/);
     if (lg && request.method === 'GET') return serveLogo(env, lg[1], request);
 
+    // El Worker de clientes (strove-clientes) solo sirve las páginas públicas de arriba
+    if (env.PUBLIC_ONLY === '1') return html('<h1>Página no encontrada</h1>', 404);
+
     // Todo lo demás requiere login
     const user = await accessUser(request, env);
     if (!user) return html('<h1>Sin acceso</h1><p>Entra con tu cuenta autorizada de Strove.</p>', 403);
@@ -428,6 +431,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
+    if (env.PUBLIC_ONLY === '1') return;
     await ensureSchema(env);
     if (event.cron === '0 10 * * *') ctx.waitUntil(syncAll(env, 10));
     else ctx.waitUntil(uptimeAll(env));

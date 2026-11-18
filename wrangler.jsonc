@@ -33,7 +33,9 @@
     // Opcional: Audience (AUD) de la aplicación de Access, para una revisión extra.
     "ACCESS_AUD": "",
     // URL pública del Hub (para armar los links del formulario de clientes)
-    "HUB_URL": "https://strove-hub.netoogare.workers.dev"
+    "HUB_URL": "https://strove-hub.netoogare.workers.dev",
+    // Dirección pública para los links de clientes (Worker strove-clientes, sin login)
+    "CLIENT_URL": "https://strove-clientes.netoogare.workers.dev"
   }
 
   // Secretos (no van aquí, se cargan con `npx wrangler secret put NOMBRE`):
