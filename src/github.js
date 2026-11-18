@@ -5,7 +5,7 @@ async function gh(env, path, init = {}) {
   const res = await fetch(`https://api.github.com${path}`, {
     ...init,
     headers: {
-      authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      authorization: `Bearer ${String(env.GITHUB_TOKEN).replace(/\s+/g, "")}`,
       accept: 'application/vnd.github+json',
       'x-github-api-version': '2022-11-28',
       'user-agent': 'strove-hub',

@@ -7,7 +7,7 @@ async function graph(env, path, params = {}) {
   if (!env.META_TOKEN) throw new Error('Falta el secreto META_TOKEN');
   const url = new URL(`https://graph.facebook.com/${ver(env)}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  url.searchParams.set('access_token', env.META_TOKEN);
+  url.searchParams.set('access_token', String(env.META_TOKEN).trim());
   const res = await fetch(url);
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(`Meta: ${data.error?.message || res.status}`);
