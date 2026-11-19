@@ -103,52 +103,103 @@ async function series(env, slug, metrics, days) {
 const logoUrl = (slug, v) => `/logo/${slug}${v ? '?v=' + encodeURIComponent(v) : ''}`;
 const statusOf = (env, slug) => env.DB.prepare('SELECT * FROM site_status WHERE client = ?').bind(slug).first();
 
+// ---------- kit de marca ----------
+const hexOk = (h) => /^#[0-9a-fA-F]{6}$/.test(h || '');
+function mixHex(a, b, t) {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const [x, y] = [p(a), p(b)];
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+async function brandOf(env, slug) {
+  const row = await env.DB.prepare('SELECT data, cover IS NOT NULL AS has_cover, updated_at FROM brands WHERE client = ?').bind(slug).first();
+  if (!row) return null;
+  try { return { ...JSON.parse(row.data), hasCover: !!row.has_cover, updated_at: row.updated_at }; } catch { return null; }
+}
+// Cliente con su kit de marca aplicado (colores de documentos, @ de Instagram, portada)
+async function withBrand(env, c) {
+  const b = await brandOf(env, c.slug);
+  if (!b) return { ...c, brand: { dark: c.report?.bg || '#1F2B26', accent: c.report?.accent || c.color || '#BDBAB2', light: c.report?.cream || '#F1EFEA', ig: c.igUsername || '' } };
+  const dark = hexOk(b.dark) ? b.dark : '#1F2B26', accent = hexOk(b.accent) ? b.accent : c.color, light = hexOk(b.light) ? b.light : '#F1EFEA';
+  return { ...c, igUsername: b.ig || c.igUsername,
+    report: { bg: dark, accent, cream: light, card: mixHex(light, dark, 0.07), muted: mixHex(accent, light, 0.35), warm: mixHex(dark, accent, 0.22) },
+    coverUrl: b.hasCover ? `/brand-cover/${c.slug}?v=${encodeURIComponent(b.updated_at)}` : null,
+    brand: { dark, accent, light, ig: b.ig || c.igUsername || '' } };
+}
+
+// ---------- ciclo del mes: parrilla → aprobada → programada → reporte ----------
+const ymOf = (iso) => iso.slice(0, 7);
+const ymShift = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return d.toISOString().slice(0, 7); };
+const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const mesName = (ym) => MES[+ym.slice(5, 7) - 1];
+async function planCounts(env, slug, ym) {
+  return env.DB.prepare(`SELECT COUNT(*) AS total,
+      SUM(status IN ('aprobado','programado','publicado')) AS approved,
+      SUM(status IN ('programado','publicado') OR post_id IS NOT NULL) AS scheduled,
+      SUM(status = 'por_aprobar') AS pending, SUM(status = 'cambios') AS changes, SUM(status = 'borrador') AS drafts
+    FROM content_plan WHERE client = ? AND substr(date, 1, 7) = ?`).bind(slug, ym).first();
+}
+async function monthCycle(env, slug) {
+  const ym = ymOf(mxToday()), prevYm = ymShift(ym, -1), nextYm = ymShift(ym, 1);
+  const [cur, next] = await Promise.all([planCounts(env, slug, ym), planCounts(env, slug, nextYm)]);
+  const rep = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(`reportdone:${slug}:${prevYm}`).first();
+  const n = (x) => x || 0;
+  return { mes: mesName(ym), prevMes: mesName(prevYm), nextMes: mesName(nextYm), ym, nextYm, prevYm,
+    cur: { total: n(cur?.total), approved: n(cur?.approved), scheduled: n(cur?.scheduled), pending: n(cur?.pending), changes: n(cur?.changes) },
+    next: { total: n(next?.total), approved: n(next?.approved), pending: n(next?.pending), changes: n(next?.changes) },
+    report: { done: !!rep, at: rep?.value || null } };
+}
+
 // ---------- lo urgente ----------
 const LEVEL = { alta: 0, media: 1, baja: 2 };
 const SRC_NAME = { ga4: 'Analytics', gsc: 'Search Console', github: 'GitHub', instagram: 'Instagram', pauta: 'Meta Ads', programados: 'lo programado en Facebook', uptime: 'el sitio', solicitudes: 'solicitudes' };
 const mxToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
 const dLabel = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
+const cap1 = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 async function urgentItems(env) {
   const today = mxToday(), in3 = shift(today, 3), in6 = shift(today, 6), w2a = shift(today, 7), w2b = shift(today, 13);
   const out = [];
-  const add = (c, level, text, tab) => out.push({ client: c.slug, name: c.name, color: c.color, level, text, link: `#/c/${c.slug}/${tab}` });
+  const add = (c, level, text, tab, action = 'Ver') => out.push({ client: c.slug, name: c.name, color: c.color, logo: logoUrl(c.slug), level, text, action, link: tab.startsWith('#') ? tab : `#/c/${c.slug}/${tab}` });
+  const day = +today.slice(8, 10);
   for (const c of CLIENTS) {
     const st = await statusOf(env, c.slug);
-    if (st?.checked_at && !(st.http_status >= 200 && st.http_status < 400)) add(c, 'alta', st.http_status ? `El sitio responde con error ${st.http_status}` : 'El sitio no responde', 'sitio');
-    if (st?.deploy_state === 'failure') add(c, 'alta', 'La última publicación del sitio falló', 'sitio');
+    if (st?.checked_at && !(st.http_status >= 200 && st.http_status < 400)) add(c, 'alta', st.http_status ? `El sitio responde con error ${st.http_status}` : 'El sitio no responde', 'sitio', 'Revisar sitio');
+    if (st?.deploy_state === 'failure') add(c, 'alta', 'La última publicación del sitio falló', 'sitio', 'Revisar sitio');
 
     const { results: logs } = await env.DB.prepare('SELECT source, ok, message FROM sync_log WHERE client = ? ORDER BY id DESC LIMIT 20').bind(c.slug).all();
     const seen = new Set();
-    for (const l of logs) { if (seen.has(l.source)) continue; seen.add(l.source); if (!l.ok) add(c, 'media', `Falla la conexión con ${SRC_NAME[l.source] || l.source}: ${String(l.message).slice(0, 80)}`, l.source === 'instagram' || l.source === 'pauta' || l.source === 'programados' ? 'redes' : 'sitio'); }
+    for (const l of logs) { if (seen.has(l.source)) continue; seen.add(l.source); if (!l.ok) add(c, 'baja', `No se pudo leer ${SRC_NAME[l.source] || l.source}: ${String(l.message).slice(0, 80)}`, l.source === 'instagram' || l.source === 'pauta' || l.source === 'programados' ? 'redes' : 'sitio', 'Ver'); }
 
     if (c.social !== false) {
       const q = (a, z) => env.DB.prepare(
         `SELECT (SELECT COUNT(*) FROM content_plan WHERE client = ?1 AND date BETWEEN ?2 AND ?3 AND status IN ('por_aprobar','cambios','aprobado','programado'))
               + (SELECT COUNT(*) FROM scheduled_posts WHERE client = ?1 AND local_date BETWEEN ?2 AND ?3) AS n`).bind(c.slug, a, z).first();
       const thisWeek = (await q(today, in6)).n, nextWeek = (await q(w2a, w2b)).n;
-      if (thisWeek === 0) add(c, 'alta', 'Sin posts programados para los próximos 7 días', 'redes');
-      else if (thisWeek === 1) add(c, 'media', 'Solo 1 post en los próximos 7 días', 'redes');
-      if (nextWeek === 0) add(c, thisWeek === 0 ? 'media' : 'media', 'La semana siguiente está vacía: hay que planear contenido', 'redes');
+      if (thisWeek === 0) add(c, 'alta', 'No hay nada para publicar en los próximos 7 días', 'redes', 'Planear');
+      else if (nextWeek === 0) add(c, 'media', 'La semana siguiente está vacía', 'redes', 'Planear');
 
       const { results: plan } = await env.DB.prepare(
         "SELECT date, title, format, status FROM content_plan WHERE client = ? AND date BETWEEN ? AND ? AND status IN ('por_aprobar','cambios','aprobado','borrador') ORDER BY date")
-        .bind(c.slug, today, in3).all();
+        .bind(c.slug, today, in6).all();
+      const toSchedule = plan.filter((p) => p.status === 'aprobado');
+      if (toSchedule.length) add(c, toSchedule.some((p) => p.date <= in3) ? 'alta' : 'media', `${toSchedule.length} post${toSchedule.length > 1 ? 's' : ''} aprobado${toSchedule.length > 1 ? 's' : ''} por programar en Meta (el primero sale ${dLabel(toSchedule[0].date)})`, 'redes', 'Programar');
       for (const p of plan) {
         const what = p.title || p.format;
-        if (p.status === 'cambios') add(c, 'alta', `El cliente pidió cambios en "${what}" (sale ${dLabel(p.date)})`, 'redes');
-        else if (p.status === 'por_aprobar') add(c, 'alta', `"${what}" sigue sin aprobar y sale ${dLabel(p.date)}`, 'redes');
-        else if (p.status === 'aprobado') add(c, 'alta', `"${what}" ya está aprobado pero falta programarlo en Meta (sale ${dLabel(p.date)})`, 'redes');
-        else if (p.status === 'borrador') add(c, 'media', `"${what}" sigue en borrador y sale ${dLabel(p.date)}`, 'redes');
+        if (p.status === 'cambios') add(c, 'alta', `El cliente pidió cambios en "${what}" (sale ${dLabel(p.date)})`, 'redes', 'Ver cambios');
+        else if (p.status === 'por_aprobar' && p.date <= in3) add(c, 'alta', `"${what}" sigue sin aprobar y sale ${dLabel(p.date)}`, 'redes', 'Recordar al cliente');
+        else if (p.status === 'borrador' && p.date <= in3) add(c, 'media', `"${what}" sigue en borrador y sale ${dLabel(p.date)}`, 'redes', 'Terminar');
       }
-      const ch = await env.DB.prepare("SELECT COUNT(*) AS n FROM content_plan WHERE client = ? AND status = 'cambios' AND date > ?").bind(c.slug, in3).first();
-      if (ch.n) add(c, 'media', `${ch.n} post${ch.n > 1 ? 's' : ''} con cambios pedidos por el cliente`, 'redes');
+      // Ciclo del mes: parrilla del siguiente mes y reporte del mes pasado
+      const cy = await monthCycle(env, c.slug);
+      if (day >= 18 && cy.next.total === 0) add(c, day >= 25 ? 'alta' : 'media', `${cap1(cy.nextMes)} todavía no tiene parrilla`, 'redes', 'Subir parrilla');
+      else if (cy.next.pending) add(c, 'media', `Parrilla de ${cy.nextMes}: ${cy.next.pending} post${cy.next.pending > 1 ? 's' : ''} esperando aprobación del cliente`, 'redes', 'Ver');
+      if (cy.next.changes) add(c, 'alta', `Parrilla de ${cy.nextMes}: el cliente pidió cambios en ${cy.next.changes} post${cy.next.changes > 1 ? 's' : ''}`, 'redes', 'Ver cambios');
+      if (day <= 12 && !cy.report.done) add(c, day >= 6 ? 'alta' : 'media', `Falta el reporte de ${cy.prevMes}`, `#/c/${c.slug}/redes?reporte=${cy.prevYm}`, 'Hacer reporte');
     }
 
     const { results: reqs } = await env.DB.prepare("SELECT title, created_at FROM requests WHERE client = ? AND status = 'nueva' ORDER BY id").bind(c.slug).all();
     for (const r of reqs) {
       const hrs = (Date.now() - Date.parse(r.created_at)) / 3600_000;
-      add(c, hrs > 48 ? 'alta' : 'media', `Solicitud sin atender${hrs > 24 ? ` (${Math.floor(hrs / 24)} d)` : ''}: "${String(r.title).slice(0, 70)}"`, 'cambios');
+      add(c, hrs > 48 ? 'alta' : 'media', `Cambio al sitio sin atender${hrs > 24 ? ` (${Math.floor(hrs / 24)} d)` : ''}: "${String(r.title).slice(0, 70)}"`, 'cambios', 'Atender');
     }
   }
   return out.sort((a, z) => LEVEL[a.level] - LEVEL[z.level]);
@@ -174,6 +225,8 @@ async function overview(env) {
       openRequests: openBy[c.slug] || 0,
       setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!(c.igUserId || c.igUsername || c.fbPageId), social: c.social !== false, repo: !!c.repo },
       plan: { aprobar: planBy[c.slug]?.aprobar || 0, cambios: planBy[c.slug]?.cambios || 0, proximos: planBy[c.slug]?.proximos || 0 },
+      cycle: c.social !== false ? await monthCycle(env, c.slug) : null,
+      brand: (await withBrand(env, c)).brand,
     });
   }
   return { clients, lastSync: lastSync?.t || null, urgent: await urgentItems(env) };
@@ -206,6 +259,8 @@ async function clientDetail(env, c) {
     links: clientLinks(c),
     formUrl,
     approveUrl,
+    cycle: c.social !== false ? await monthCycle(env, c.slug) : null,
+    brand: { ...(await withBrand(env, c)).brand, hasCover: !!(await brandOf(env, c.slug))?.hasCover },
   };
 }
 
@@ -499,6 +554,15 @@ export default {
         return json(await bestTime(env, c.slug));
       }
 
+      const rd = path.match(/^\/api\/clients\/([a-z0-9-]+)\/report-done$/);
+      if (rd && request.method === 'POST') {
+        const c = getClient(rd[1]); const { mes, done = true } = await request.json();
+        if (!c || !/^\d{4}-\d{2}$/.test(mes || '')) return json({ error: 'Datos no válidos' }, 400);
+        if (done) await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(`reportdone:${c.slug}:${mes}`, now()).run();
+        else await env.DB.prepare('DELETE FROM settings WHERE key = ?').bind(`reportdone:${c.slug}:${mes}`).run();
+        return json({ ok: true });
+      }
+
       if (path === '/api/report-note') {
         const c = getClient(url.searchParams.get('client')); const mes = url.searchParams.get('mes') || '';
         if (!c || !/^\d{4}-\d{2}$/.test(mes)) return json({ error: 'Datos no válidos' }, 400);
@@ -512,6 +576,30 @@ export default {
         return json({ note: row?.value || '' });
       }
 
+      const bk = path.match(/^\/api\/clients\/([a-z0-9-]+)\/brand$/);
+      if (bk && request.method === 'PUT') {
+        const c = getClient(bk[1]);
+        if (!c) return json({ error: 'Cliente no encontrado' }, 404);
+        const b = await request.json();
+        const data = { dark: hexOk(b.dark) ? b.dark : null, accent: hexOk(b.accent) ? b.accent : null, light: hexOk(b.light) ? b.light : null, ig: String(b.ig || '').replace(/^@/, '').trim().slice(0, 40) };
+        const prev = await env.DB.prepare('SELECT cover FROM brands WHERE client = ?').bind(c.slug).first();
+        let cover = prev?.cover || null;
+        if (b.cover === null) cover = null;
+        else if (typeof b.cover === 'string') {
+          if (!/^data:image\/(jpeg|png|webp);base64,/.test(b.cover) || b.cover.length > 1_900_000) return json({ error: 'Foto no válida o muy pesada' }, 400);
+          cover = b.cover;
+        }
+        await env.DB.prepare('INSERT OR REPLACE INTO brands (client, data, cover, updated_at) VALUES (?, ?, ?, ?)').bind(c.slug, JSON.stringify(data), cover, now()).run();
+        return json({ brand: (await withBrand(env, c)).brand });
+      }
+      const bc = path.match(/^\/brand-cover\/([a-z0-9-]+)$/);
+      if (bc && request.method === 'GET') {
+        const row = await env.DB.prepare('SELECT cover FROM brands WHERE client = ?').bind(bc[1]).first();
+        const [, mime, b64] = (row?.cover || '').match(/^data:([^;]+);base64,(.*)$/) || [];
+        if (!b64) return new Response('', { status: 404 });
+        return new Response(Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)), { headers: { 'content-type': mime, 'cache-control': 'private, max-age=86400' } });
+      }
+
       const vp = path.match(/^\/vista-previa\/([a-z0-9-]+)$/);
       if (vp && request.method === 'GET') {
         const c = getClient(vp[1]);
@@ -519,7 +607,7 @@ export default {
         const t = new Date(); const def = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
         const mes = /^\d{4}-\d{2}$/.test(url.searchParams.get('mes') || '') ? url.searchParams.get('mes') : def;
         const intro = (await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(`pvintro:${c.slug}:${mes}`).first())?.value || '';
-        return html(await renderPreview(env, c, mes, { intro }));
+        return html(await renderPreview(env, await withBrand(env, c), mes, { intro }));
       }
 
       const rp = path.match(/^\/reporte\/([a-z0-9-]+)$/);
@@ -530,7 +618,8 @@ export default {
         const mes = /^\d{4}-\d{2}$/.test(url.searchParams.get('mes') || '') ? url.searchParams.get('mes') : def;
         const raw = (await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(`note:${c.slug}:${mes}`).first())?.value || '';
         let o = {}; try { o = raw.startsWith('{') ? JSON.parse(raw) : { note: raw }; } catch { o = { note: raw }; }
-        return html(await renderReport(env, c, mes, o));
+        if (url.searchParams.get('print') === '1') await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(`reportdone:${c.slug}:${mes}`, now()).run();
+        return html(await renderReport(env, await withBrand(env, c), mes, o));
       }
 
       if (path === '/api/sync' && request.method === 'POST') {

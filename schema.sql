@@ -141,3 +141,11 @@ CREATE TABLE IF NOT EXISTS plan_slides (
   image   TEXT NOT NULL,         -- data URL
   PRIMARY KEY (plan_id, idx)
 );
+
+-- Kit de marca de cada cliente (colores, @ de Instagram, foto de portada) editable desde el Hub
+CREATE TABLE IF NOT EXISTS brands (
+  client     TEXT PRIMARY KEY,
+  data       TEXT NOT NULL,      -- JSON: { dark, accent, light, ig }
+  cover      TEXT,               -- data URL de la foto de portada (opcional)
+  updated_at TEXT NOT NULL
+);

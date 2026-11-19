@@ -139,6 +139,8 @@ export async function syncClient(env, client, days = 10) {
     await saveMetrics(env, client.slug, 'gsc', rows);
     await saveBreakdown(env, client.slug, 'queries', queries);
   });
+  // El @ de Instagram se puede cambiar desde el kit de marca del Hub
+  try { const b = await env.DB.prepare('SELECT data FROM brands WHERE client = ?').bind(client.slug).first(); const ig = b && JSON.parse(b.data).ig; if (ig) client = { ...client, igUsername: ig }; } catch { /* sin kit */ }
   if (client.social !== false && (client.igUserId || client.igUsername || client.fbPageId)) await step('instagram', async () => {
     const meta = await resolveMeta(env, client);
     const c = { ...client, igUserId: meta.igUserId };

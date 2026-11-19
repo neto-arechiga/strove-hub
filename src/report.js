@@ -69,6 +69,7 @@ export async function renderReport(env, c, mes, opts = {}) {
   const cpc = hasAds && convs ? cur.ad_spend / convs : null, cpcPrev = prev.ad_spend && prev.ad_messages ? prev.ad_spend / prev.ad_messages : null;
   const byReach = [...posts].sort((a, b) => (b.reach ?? b.views ?? 0) - (a.reach ?? a.views ?? 0));
   const photos = byReach.map((p) => p.thumb).filter(Boolean);
+  if (c.coverUrl) photos.unshift(c.coverUrl);
   const photo = (i) => photos.length ? photos[i % photos.length] : null;
   const queries = br.filter((b) => b.kind === 'queries').slice(0, 6);
   const channels = br.filter((b) => b.kind === 'channels').slice(0, 5);

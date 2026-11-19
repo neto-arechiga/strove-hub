@@ -226,6 +226,40 @@ details.hist[open] summary{margin-bottom:14px}
 .u-ok{padding:18px 20px;color:var(--mut);font-size:14px}
 .u-ok b{color:var(--grn)}
 .chip.fb{border-left-color:#4F8EF7;color:var(--txt)}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin:34px 0 14px}.sec-h h3{font-weight:900;font-size:22px;letter-spacing:-.02em}
+.today{display:flex;flex-direction:column;gap:14px}
+.tg{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.tg-h,.tg summary{display:flex;justify-content:space-between;padding:14px 18px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--line);cursor:default}
+.tg summary{cursor:pointer;border-bottom:0}.tg[open] summary{border-bottom:1px solid var(--line)}
+.tg-h span{color:var(--txt)}
+.task{display:grid;grid-template-columns:96px 1fr auto;gap:16px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line);transition:.15s}
+.task:last-child{border-bottom:0}.task:hover{background:var(--card2)}
+.t-logo{display:flex;align-items:center;height:30px}.brandlogo.xs{max-height:28px;max-width:90px;object-fit:contain;object-position:left}
+.t-tx{font-size:14px;line-height:1.4}.t-alta .t-tx{font-weight:600}
+.t-go{padding:7px 14px;font-size:11px;white-space:nowrap}
+.cycle{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 6px}
+.cycle a,.task{text-decoration:none;color:inherit}
+.cy-h{grid-column:1/-1;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:2px}
+.cycle a{display:flex;flex-direction:column;gap:4px;padding:9px 10px;border-radius:10px;background:var(--card2);border:1px solid var(--line);font-size:11px;min-width:0}
+.cycle a span{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cycle a b{font-size:13px}
+.cycle a i{width:7px;height:7px;border-radius:50%;background:var(--dim);flex-shrink:0}
+.cycle .cs-ok i{background:var(--grn)}.cycle .cs-part i{background:var(--yel)}.cycle .cs-todo i{background:var(--org)}
+.cycle .cs-ok{border-color:rgba(61,220,132,.25)}
+.cy-next{grid-column:1/-1;flex-direction:row!important;justify-content:center;font-family:var(--mono);font-size:10.5px!important;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:7px!important}
+.cy-next.warn{color:var(--org)}
+.d-h + .modal + .cycle,.modal + .cycle{margin:0 0 18px}
+.kp.k3{grid-template-columns:repeat(3,1fr)}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cpick{display:flex;gap:8px;align-items:center}.cpick input[type=color]{width:42px;height:38px;padding:2px;border-radius:8px;flex-shrink:0}
+.bprev{display:grid;grid-template-columns:1.3fr 1fr;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.bprev div{padding:18px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-height:110px;justify-content:center}
+.bprev span{font-size:34px;font-weight:300;letter-spacing:-.02em}.bprev i{font-style:normal;font-size:34px;font-weight:700}
+.bprev div:first-child{flex-direction:row;flex-wrap:wrap;align-items:baseline}
+.bprev small{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px}
+.cov{display:flex;gap:10px;align-items:center;flex-wrap:wrap;text-transform:none;letter-spacing:0;font-family:var(--sans);font-size:12px}
+.cov img{height:70px;border-radius:8px}.cov em{color:var(--mut);font-style:normal}
+@media (max-width:760px){.task{grid-template-columns:1fr;gap:6px}.cycle{grid-template-columns:1fr 1fr}.row3{grid-template-columns:1fr}}
 .sheet.one{grid-template-columns:1fr;max-width:860px}
 .cnt{letter-spacing:.04em;text-transform:none;color:var(--dim)}
 .bad{color:var(--org)!important}
@@ -337,55 +371,88 @@ function sparkSvg(vals, color) {
 async function renderOverview() {
   const app = $('#app');
   const data = await api('/api/overview');
-  const sum = (m, key) => data.clients.reduce((a, c) => a + (c.kpis[m]?.[key] || 0), 0);
-  const tot = (m) => ({ cur: sum(m, 'cur'), prev: sum(m, 'prev') });
-  const openTotal = data.clients.reduce((a, c) => a + c.openRequests, 0);
-
+  const groups = [['alta', 'Urgente'], ['media', 'Esta semana'], ['baja', 'Para revisar']];
+  const now = new Date();
+  const task = (u) => `<a class="task t-${esc(u.level)}" href="${esc(u.link)}">
+      <span class="t-logo"><img class="brandlogo xs" src="${esc(u.logo)}" alt="${esc(u.name)}" data-name="${esc(u.name)}"></span>
+      <span class="t-tx">${esc(u.text)}</span><span class="btn ${u.level === 'alta' ? 'pri' : ''} t-go">${esc(u.action || 'Ver')}</span></a>`;
+  const urgentN = data.urgent.filter((u) => u.level === 'alta').length;
   app.innerHTML = `
     <section class="hero">
-      <div><div class="eyebrow">${ME ? 'Hola, ' + esc(ME) + ' · ' : ''}We have the data</div><h1 style="margin-top:12px">todos tus<br><em>clientes.</em></h1></div>
-      <div class="meta"><div class="eyebrow">Últimos 28 días vs. los 28 anteriores</div><div>Datos actualizados ${esc(ago(data.lastSync))}</div></div>
+      <div><div class="eyebrow">${ME ? 'Hola, ' + esc(ME.split('@')[0]) + ' · ' : ''}${now.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        <h1 style="margin-top:12px">qué hago<br><em>hoy.</em></h1></div>
+      <div class="meta"><div class="eyebrow">${urgentN ? `${urgentN} urgente${urgentN > 1 ? 's' : ''}` : 'Nada urgente'} · ${data.urgent.length} pendiente${data.urgent.length === 1 ? '' : 's'}</div><div>Datos actualizados ${esc(ago(data.lastSync))}</div></div>
     </section>
-    <section class="urgent">
-      <div class="urgent-h"><h3>lo urgente hoy</h3><span class="cnt">${data.urgent.length ? data.urgent.length + ' pendiente' + (data.urgent.length > 1 ? 's' : '') : ''}</span></div>
-      ${data.urgent.length ? data.urgent.slice(0, 12).map((u) => `
-        <a class="u-item u-${esc(u.level)}" href="${esc(u.link)}" style="--c:${esc(u.color)}">
-          <i class="u-dot"></i><span class="u-cl">${esc(u.name)}</span><span class="u-tx">${esc(u.text)}</span><span class="u-go">Ver →</span>
-        </a>`).join('') + (data.urgent.length > 12 ? `<div class="u-ok">y ${data.urgent.length - 12} más…</div>` : '')
-        : '<div class="u-ok"><b>Todo en orden.</b> Nada urgente hoy.</div>'}
+    <section class="today">
+      ${data.urgent.length ? groups.map(([lv, title]) => { const list = data.urgent.filter((u) => u.level === lv); if (!list.length) return '';
+        return lv === 'baja' ? `<details class="tg"><summary>${title} · ${list.length}</summary>${list.map(task).join('')}</details>`
+          : `<div class="tg"><div class="tg-h">${title}<span>${list.length}</span></div>${list.map(task).join('')}</div>`; }).join('')
+        : '<div class="u-ok"><b>Todo al día ✓</b> Nada pendiente con tus clientes.</div>'}
     </section>
-    <section class="totals">
-      ${[['sessions','Visitas'],['leads','Leads'],['clicks','Clics desde Google']].map(([m,l]) => `
-        <div class="tot"><div class="eyebrow">${l}</div><div class="v">${fmt(tot(m).cur)}</div>${delta(tot(m), m)}</div>`).join('')}
-      <div class="tot"><div class="eyebrow">Cambios pendientes</div><div class="v">${openTotal}</div><span class="delta flat">${data.clients.length} clientes</span></div>
-    </section>
+    <div class="sec-h"><h3>clientes</h3><span class="eyebrow">El mes de cada uno</span></div>
     <section class="grid">${data.clients.map(card).join('')}</section>`;
-  app.querySelectorAll('.card').forEach((el) => el.addEventListener('click', () => location.hash = '#/c/' + el.dataset.slug));
+  app.querySelectorAll('.card').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('a')) return; location.hash = '#/c/' + el.dataset.slug; }));
+}
+
+// Barra del mes: parrilla → aprobada → programada → reporte del mes pasado
+function cycleBar(cy, slug) {
+  if (!cy) return '';
+  const c = cy.cur; const st = (ok, part) => (ok ? 'ok' : part ? 'part' : 'todo');
+  const steps = [
+    ['Parrilla', c.total ? `${c.total} posts` : 'Falta', st(c.total > 0), `#/c/${slug}/redes`],
+    ['Aprobada', c.total ? (c.pending + c.changes ? `${c.approved}/${c.total}` : 'Lista ✓') : '—', st(c.total && !(c.pending + c.changes), c.approved > 0), `#/c/${slug}/redes`],
+    ['En Meta', c.total ? `${c.scheduled}/${c.total}` : '—', st(c.total && c.scheduled >= c.total, c.scheduled > 0), `#/c/${slug}/redes`],
+    [`Reporte ${cy.prevMes.slice(0, 3)}.`, cy.report.done ? 'Listo ✓' : 'Pendiente', st(cy.report.done), `#/c/${slug}/redes?reporte=${cy.prevYm}`],
+  ];
+  return `<div class="cycle"><div class="cy-h">${esc(cy.mes)}</div>${steps.map(([l, v, k, h]) => `<a class="cs-${k}" href="${h}"><span><i></i>${esc(l)}</span><b>${esc(v)}</b></a>`).join('')}
+    <a class="cy-next ${cy.next.total ? '' : 'warn'}" href="#/c/${slug}/redes">${esc(cy.nextMes)}: ${cy.next.total ? `${cy.next.total} posts${cy.next.pending ? ` · ${cy.next.pending} por aprobar` : ''}` : 'sin parrilla'}</a></div>`;
 }
 
 function card(c) {
   const [dc, dl] = siteDot(c.status);
   const todo = [];
-  if (!c.setup.ga4) todo.push('Falta conectar Analytics');
-  if (!c.setup.clarity) todo.push('Falta Clarity');
-  if (!c.setup.cms) todo.push('Sin panel para editar');
   if (c.setup.social && !c.setup.ig) todo.push('Falta conectar Instagram');
+  if (c.url && !c.setup.ga4) todo.push('Falta Analytics');
   const k = (m) => `<div><div class="l">${LABEL[m]}</div><div class="v ${c.kpis[m] ? '' : 'na'}">${fmt(c.kpis[m]?.cur, m)}</div>${c.kpis[m] ? delta(c.kpis[m], m) : ''}</div>`;
-  return `<article class="card" data-slug="${esc(c.slug)}" style="--c:${esc(c.color)}">
+  const ks = c.setup.ig ? ['followers', 'reach', 'interactions'] : ['sessions', 'leads', 'clicks'];
+  return `<article class="card" data-slug="${esc(c.slug)}" style="--c:${esc(c.brand?.accent || c.color)}">
     <div class="card-h">
-      <div class="logo-wrap">${logoImg(c)}<div class="url">${esc((c.url || '').replace(/^https?:\/\//, ''))}</div></div>
-      <span class="pill"><i class="dot ${dc}"></i>${dl}</span>
+      <div class="logo-wrap">${logoImg(c)}</div>
+      ${c.url ? `<span class="pill" title="${esc(c.url)}"><i class="dot ${dc}"></i>${dl}</span>` : ''}
     </div>
-    <div class="kp">${k('sessions')}${k('leads')}${k('clicks')}${k('position')}</div>
-    ${sparkSvg(c.spark.values.sessions || [], c.color)}
-    ${c.setup.ig ? `<div class="kp social">${k('followers')}${k('reach')}${k('post_views')}${k('interactions')}</div>` : ''}
-    <div class="card-f">
-      ${c.plan.aprobar ? `<span class="pill wait">${c.plan.aprobar} post${c.plan.aprobar > 1 ? 's' : ''} por aprobar</span>` : ''}
-      ${c.plan.cambios ? `<span class="pill chg">${c.plan.cambios} con cambios del cliente</span>` : ''}
-      ${c.openRequests ? `<span class="pill req">${c.openRequests} cambio${c.openRequests > 1 ? 's' : ''} pendiente${c.openRequests > 1 ? 's' : ''}</span>` : ''}
-      ${todo.map((t) => `<span class="pill todo">${t}</span>`).join('')}
-    </div>
+    ${cycleBar(c.cycle, c.slug)}
+    <div class="kp k3">${ks.map(k).join('')}</div>
+    ${todo.length || c.openRequests ? `<div class="card-f">${c.openRequests ? `<span class="pill req">${c.openRequests} cambio${c.openRequests > 1 ? 's' : ''} al sitio</span>` : ''}${todo.map((t) => `<span class="pill todo">${t}</span>`).join('')}</div>` : ''}
   </article>`;
+}
+
+// ---------------- kit de marca ----------------
+function openBrand(slug, d) {
+  const m = $('#rmodal'); const b = d.brand || {}; let cover; // undefined = sin cambio, null = quitar
+  const field = (k, l, v) => `<label>${l}<span class="cpick"><input type="color" data-k="${k}" value="${esc(v)}"><input type="text" name="${k}" value="${esc(v)}" maxlength="7"></span></label>`;
+  m.innerHTML = `<div class="sheet one"><form class="fm" id="bForm">
+    <h3>marca de ${esc(d.client.name)}</h3>
+    <div class="eyebrow" style="line-height:1.6">Estos colores y la foto se usan en la vista previa del mes, el reporte y los links para el cliente.</div>
+    <div class="row3">${field('dark', 'Color principal (oscuro)', b.dark || '#1F2B26')}${field('accent', 'Color de acento', b.accent || d.client.color)}${field('light', 'Fondo claro', b.light || '#F1EFEA')}</div>
+    <div class="bprev" id="bPrev"></div>
+    <label>Instagram<input type="text" name="ig" value="${esc(b.ig || '')}" placeholder="@usuario" maxlength="41"></label>
+    <label>Foto de portada (opcional)<span class="cov"><span id="bCov">${b.hasCover ? `<img src="/brand-cover/${esc(slug)}?t=${Date.now()}" alt="">` : '<em>Si no subes una, se usa la foto del mejor post del mes.</em>'}</span>
+      <button type="button" class="btn" id="bPick">${b.hasCover ? 'Cambiar' : 'Subir foto'}</button>${b.hasCover ? '<button type="button" class="btn ghost" id="bDel">Quitar</button>' : ''}<input type="file" id="bFile" accept="image/*" hidden></span></label>
+    <div class="acts"><span class="sp"></span><button type="button" class="btn" id="bClose">Cancelar</button><button type="submit" class="btn pri">Guardar marca</button></div>
+  </form></div>`;
+  m.hidden = false;
+  const f = $('#bForm'); const close = () => { m.hidden = true; m.innerHTML = ''; };
+  const prev = () => { $('#bPrev').innerHTML = `<div style="background:${f.dark.value};color:${f.light.value}"><span>Noviembre</span><i style="color:${f.accent.value}">.</i><small style="background:${f.accent.value};color:${f.dark.value}">+62% vs. oct.</small></div><div style="background:${f.light.value};color:${f.dark.value}"><b>Así se ven tus documentos</b><small style="background:${f.dark.value};color:${f.accent.value}">Pastilla</small></div>`; };
+  f.querySelectorAll('input[type=color]').forEach((c) => c.addEventListener('input', () => { f[c.dataset.k].value = c.value; prev(); }));
+  ['dark', 'accent', 'light'].forEach((k) => f[k].addEventListener('input', () => { if (/^#[0-9a-f]{6}$/i.test(f[k].value)) { f.querySelector(`[data-k=${k}]`).value = f[k].value; prev(); } }));
+  prev();
+  $('#bClose').onclick = close; m.onclick = (e) => { if (e.target === m) close(); };
+  $('#bPick').onclick = () => $('#bFile').click();
+  $('#bFile').onchange = async (e) => { const file = e.target.files[0]; if (!file) return; try { cover = await compressHi(file); $('#bCov').innerHTML = `<img src="${cover}" alt="">`; } catch (err) { toast(err.message); } };
+  $('#bDel') && ($('#bDel').onclick = () => { cover = null; $('#bCov').innerHTML = '<em>Sin foto: se usa la del mejor post del mes.</em>'; });
+  f.onsubmit = async (e) => { e.preventDefault();
+    try { await api(`/api/clients/${slug}/brand`, { method: 'PUT', body: JSON.stringify({ dark: f.dark.value, accent: f.accent.value, light: f.light.value, ig: f.ig.value, ...(cover !== undefined ? { cover } : {}) }) });
+      close(); toast('Marca guardada ✓'); renderClient(slug, currentTab()); } catch (err) { toast(err.message); } };
 }
 
 // ---------------- ficha del cliente ----------------
@@ -402,9 +469,10 @@ async function renderClient(slug, tab = 'sitio') {
     <a class="back" href="#/"><span>←</span> Todos los clientes</a>
     <section class="d-h" style="--c:${esc(c.color)}">
       <div class="logo-wrap">${logoImg(c, 'lg')}<button class="logo-edit" id="logoBtn">Cambiar logo</button><input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden></div>
-      <div class="links"><button class="btn pri" id="reportBtn">Descargar reporte</button>${d.links.map((l) => `<a class="btn" href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}</div>
+      <div class="links"><button class="btn pri" id="reportBtn">Descargar reporte</button><button class="btn" id="brandBtn">Marca</button>${d.links.map((l) => `<a class="btn" href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}</div>
     </section>
     <div class="modal" id="rmodal" hidden></div>
+    ${cycleBar(d.cycle, slug)}
 
     <nav class="ctabs" id="ctabs">
       <a href="#/c/${esc(slug)}/sitio" data-t="sitio">Sitio web</a>
@@ -476,6 +544,9 @@ async function renderClient(slug, tab = 'sitio') {
   if (hasData && tab === 'sitio') drawChart(d.series, c.color);
   $('#tabs').addEventListener('click', (e) => { const m = e.target.dataset.m; if (!m) return; chartMetric = m; $('#tabs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === m)); if (hasData) drawChart(d.series, c.color); });
   $('#reportBtn').addEventListener('click', () => openReport(slug, c));
+  $('#brandBtn').addEventListener('click', () => openBrand(slug, d));
+  const rq = location.hash.match(/reporte=(\d{4}-\d{2})/);
+  if (rq) { history.replaceState(null, '', location.hash.replace(/\?reporte=\d{4}-\d{2}/, '')); openReport(slug, c, rq[1]); }
   $('#logoBtn').addEventListener('click', () => $('#logoFile').click());
   $('#logoFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -1015,10 +1086,10 @@ async function openPreviewDoc(slug) {
 }
 
 // ---------------- reporte mensual ----------------
-async function openReport(slug, c) {
+async function openReport(slug, c, pre) {
   const m = $('#rmodal'); const t = new Date();
   const opts = Array.from({ length: 6 }, (_, k) => { const x = new Date(t.getFullYear(), t.getMonth() - k, 1); return { v: `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`, l: `${MESES[x.getMonth()]} ${x.getFullYear()}` }; });
-  const def = t.getDate() <= 7 ? opts[1].v : opts[0].v;
+  const def = pre && opts.some((o) => o.v === pre) ? pre : t.getDate() <= 12 ? opts[1].v : opts[0].v;
   m.innerHTML = `<div class="sheet one"><form class="fm" id="rForm">
     <h3>reporte mensual</h3>
     <div class="eyebrow" style="line-height:1.6">Presentación con los números del mes (Instagram, pauta, sitio y Google). Lo de abajo es opcional: si lo llenas, aparece en el reporte.</div>
@@ -1028,9 +1099,10 @@ async function openReport(slug, c) {
     <label>Metas del mes · una por renglón: meta | resultado | estado<textarea name="goals" style="min-height:90px" placeholder="20–25 conversaciones con pauta | 36 | Superada&#10;80+ seguidores nuevos | 51 | En camino"></textarea></label>
     <label>Plan para el siguiente mes · una por renglón: título: descripción<textarea name="plan" style="min-height:90px" placeholder="Pauta en clases: $2,000 al mes en lo que trae mensajes a ~$40&#10;Responder en menos de 1 hora: respuestas rápidas con precios y horarios"></textarea></label>
     <label>Frase de cierre<input type="text" name="closing" maxlength="60" placeholder="Gracias"></label>
-    <div class="acts"><span class="sp"></span><button type="button" class="btn" id="rView">Solo ver</button><button type="submit" class="btn pri">Descargar PDF</button></div>
+    <div class="acts"><button type="button" class="btn ghost2" id="rDone" title="Para cuando ya lo mandaste por otro lado">Marcar como enviado</button><span class="sp"></span><button type="button" class="btn" id="rView">Solo ver</button><button type="submit" class="btn pri">Descargar PDF</button></div>
   </form></div>`;
   m.hidden = false;
+  $('#rDone').onclick = async () => { try { await api(`/api/clients/${slug}/report-done`, { method: 'POST', body: JSON.stringify({ mes: $('#rForm').mes.value }) }); m.hidden = true; m.innerHTML = ''; toast('Reporte marcado como enviado ✓'); renderClient(slug, currentTab()); } catch (err) { toast(err.message); } };
   const f = $('#rForm'); const keys = ['note', 'adsNote', 'goals', 'plan', 'closing'];
   const load = async () => { try { const raw = (await api(`/api/report-note?client=${slug}&mes=${f.mes.value}`)).note || '';
     let o = {}; try { o = raw.startsWith('{') ? JSON.parse(raw) : { note: raw }; } catch { o = { note: raw }; }
