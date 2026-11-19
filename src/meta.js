@@ -63,10 +63,20 @@ export async function fetchInstagram(env, client, days) {
   return { rows, posts, username: profile.username };
 }
 
+export async function resolveAdAccount(env, client) {
+  if (client.adAccountId) return client.adAccountId;
+  const data = await graph(env, 'me/adaccounts', { fields: 'name,account_id', limit: 100 });
+  const want = String(client.adAccountName || '').toLowerCase();
+  const acc = (data.data || []).find((a) => a.name?.toLowerCase() === want);
+  if (!acc) throw new Error(`No encuentro la cuenta publicitaria "${client.adAccountName}"`);
+  return acc.account_id;
+}
+
 export async function fetchAds(env, client, days) {
+  const adId = await resolveAdAccount(env, client);
   const until = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
   const since = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
-  const data = await graph(env, `act_${client.adAccountId}/insights`, {
+  const data = await graph(env, `act_${adId}/insights`, {
     fields: 'spend,reach,clicks,actions',
     time_increment: 1,
     time_range: JSON.stringify({ since, until }),

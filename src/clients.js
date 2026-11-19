@@ -15,8 +15,9 @@ export const CLIENTS = [
     clarityId: 'zf9o0ztr0m',
     cms: 'pages-cms',
     // Meta (desde el Business Manager de Strove)
-    igUsername: '',                 // @ de Instagram sin arroba: con eso el Hub encuentra la cuenta solo
+    igUsername: 'viajesaot',                 // @ de Instagram sin arroba: con eso el Hub encuentra la cuenta solo
     igUserId: '',                   // opcional: se detecta solo a partir del @
+    adAccountName: 'Viajes AOT ads', // cuenta publicitaria por nombre (o adAccountId)
     adAccountId: '',                // act_… sin el "act_"; vacío si no hay pauta
     color: '#534AB7',
   },

@@ -151,7 +151,7 @@ export async function syncClient(env, client, days = 10) {
     await savePosts(env, client.slug, posts);
     await matchPlan(env, client);
   });
-  if (client.adAccountId) await step('pauta', async () => {
+  if (client.adAccountId || client.adAccountName) await step('pauta', async () => {
     const { rows } = await fetchAds(env, client, Math.min(days, 90));
     await saveMetrics(env, client.slug, 'ads', rows);
   });

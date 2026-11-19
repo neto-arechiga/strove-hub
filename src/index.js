@@ -190,7 +190,7 @@ async function clientDetail(env, c) {
   return {
     client: { slug: c.slug, name: c.name, url: c.url, color: c.color, repo: c.repo, leadEvent: c.leadEvent,
       logo: logoUrl(c.slug, (await env.DB.prepare('SELECT updated_at FROM logos WHERE client = ?').bind(c.slug).first())?.updated_at),
-      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!(c.igUserId || c.igUsername || c.fbPageId), ads: !!c.adAccountId, social: c.social !== false, repo: !!c.repo }, platform: c.platform || 'github' },
+      setup: { ga4: !!c.ga4PropertyId, gsc: !!c.gscSite, clarity: !!c.clarityId, cms: !!c.cms, ig: !!(c.igUserId || c.igUsername || c.fbPageId), ads: !!(c.adAccountId || c.adAccountName), social: c.social !== false, repo: !!c.repo }, platform: c.platform || 'github' },
     kpis: await kpis(env, c.slug),
     series: await series(env, c.slug, ['sessions', 'users', 'leads', 'clicks', 'impressions', 'position', 'reach', 'followers', 'ad_spend', 'ad_messages'], 90),
     posts,
