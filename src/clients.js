@@ -44,7 +44,7 @@ export const CLIENTS = [
     platform: 'framer',             // sitio hecho en Framer: sin repo de GitHub
     repo: '',
     ga4PropertyId: '529187765',     // GA4 de MM (acceso vía hola@strove.mx)
-    gscSite: 'sc-domain:mmestudiointerior.com', // pendiente: el propietario debe agregar al robot
+    gscSite: 'sc-domain:mmestudiointerior.com', // conectado (propietario: netoogare@gmail.com)
     leadEvent: '',
     clarityId: 'vyaifik3h2',
     cms: 'framer',
