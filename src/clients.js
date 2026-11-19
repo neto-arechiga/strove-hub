@@ -20,6 +20,7 @@ export const CLIENTS = [
     adAccountName: 'Viajes AOT ads', // cuenta publicitaria por nombre (o adAccountId)
     adAccountId: '',                // act_… sin el "act_"; vacío si no hay pauta
     color: '#534AB7',
+    report: { bg: '#1C2A24', accent: '#A9C7B2' }, // colores del reporte mensual (los de su parrilla)
   },
   {
     slug: 'lentes-sol-y-mas',

@@ -3,6 +3,7 @@ import { CLIENTS, getClient, clientLinks } from './clients.js';
 import { accessUser, formToken, checkFormToken } from './auth.js';
 import { syncAll, syncClient, uptimeAll, refreshRequests } from './sync.js';
 import { createIssue } from './github.js';
+import { renderReport } from './report.js';
 import dashboardHtml from './ui/dashboard.html';
 import formHtml from './ui/form.html';
 import approveHtml from './ui/aprobar.html';
@@ -231,7 +232,7 @@ function cleanPlan(body, partial) {
 
 async function planList(env, slug, from, to, withImages = false) {
   const { results } = await env.DB.prepare(
-    `SELECT ${PLAN_COLS}, image IS NOT NULL AS has_image FROM content_plan WHERE client = ? AND date BETWEEN ? AND ? ORDER BY date, time`)
+    `SELECT ${PLAN_COLS}, image IS NOT NULL AS has_image, (SELECT COUNT(*) FROM plan_slides s WHERE s.plan_id = content_plan.id) AS slides FROM content_plan WHERE client = ? AND date BETWEEN ? AND ? ORDER BY date, time`)
     .bind(slug, from, to).all();
   return results;
 }
@@ -242,6 +243,25 @@ async function planImage(env, id) {
   const [, mime, b64] = row.image.match(/^data:([^;]+);base64,(.*)$/) || [];
   if (!b64) return new Response('', { status: 404 });
   return new Response(Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)), { headers: { 'content-type': mime, 'cache-control': 'private, max-age=300' } });
+}
+
+async function slideImage(env, id, n) {
+  const row = await env.DB.prepare('SELECT image FROM plan_slides WHERE plan_id = ? AND idx = ?').bind(id, n).first();
+  const [, mime, b64] = (row?.image || '').match(/^data:([^;]+);base64,(.*)$/) || [];
+  if (!b64) return new Response('', { status: 404 });
+  return new Response(Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)), { headers: { 'content-type': mime, 'cache-control': 'private, max-age=300' } });
+}
+
+// Mejor hora para publicar: promedio de reproducciones (o alcance) por hora local, con los últimos 60 posts
+async function bestTime(env, slug) {
+  const { results } = await env.DB.prepare('SELECT published_at, views, reach FROM posts WHERE client = ? ORDER BY published_at DESC LIMIT 60').bind(slug).all();
+  const hourOf = (iso) => +new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false }).format(new Date(iso)) % 24;
+  const by = {};
+  for (const p of results) { const v = p.views ?? p.reach; if (v == null || !p.published_at) continue; const h = hourOf(p.published_at); (by[h] ||= []).push(v); }
+  const rows = Object.entries(by).filter(([, v]) => v.length >= 2).map(([h, v]) => ({ hour: +h, avg: v.reduce((a, b) => a + b, 0) / v.length, n: v.length }))
+    .sort((a, b) => b.avg - a.avg);
+  if (!rows.length) return { hour: null, basis: results.length };
+  return { hour: `${String(rows[0].hour).padStart(2, '0')}:00`, basis: results.length, ranking: rows.slice(0, 3).map((r) => ({ hour: `${String(r.hour).padStart(2, '0')}:00`, avg: Math.round(r.avg), n: r.n })) };
 }
 
 // ---------- aprobación del cliente ----------
@@ -452,8 +472,51 @@ export default {
         return row ? json({ item: row }) : json({ error: 'No existe' }, 404);
       }
       if (pm && !pm[2] && request.method === 'DELETE') {
-        await env.DB.prepare('DELETE FROM content_plan WHERE id = ?').bind(+pm[1]).run();
+        await env.DB.batch([env.DB.prepare('DELETE FROM content_plan WHERE id = ?').bind(+pm[1]), env.DB.prepare('DELETE FROM plan_slides WHERE plan_id = ?').bind(+pm[1])]);
         return json({ ok: true });
+      }
+
+      const sl = path.match(/^\/api\/plan\/(\d+)\/slides(?:\/(\d+))?$/);
+      if (sl && request.method === 'GET' && sl[2] !== undefined) return slideImage(env, +sl[1], +sl[2]);
+      if (sl && request.method === 'PUT' && sl[2] !== undefined) {
+        const { image } = await request.json();
+        if (!/^data:image\/(jpeg|png|webp);base64,/.test(image || '')) return json({ error: 'Imagen no válida' }, 400);
+        if (image.length > 1_900_000) return json({ error: 'La lámina es muy pesada' }, 400);
+        await env.DB.prepare('INSERT OR REPLACE INTO plan_slides (plan_id, idx, image) VALUES (?, ?, ?)').bind(+sl[1], +sl[2], image).run();
+        return json({ ok: true });
+      }
+      if (sl && request.method === 'DELETE' && sl[2] === undefined) {
+        await env.DB.prepare('DELETE FROM plan_slides WHERE plan_id = ?').bind(+sl[1]).run();
+        return json({ ok: true });
+      }
+
+      if (path === '/api/best-time' && request.method === 'GET') {
+        const c = getClient(url.searchParams.get('client'));
+        if (!c) return json({ error: 'Cliente no encontrado' }, 404);
+        return json(await bestTime(env, c.slug));
+      }
+
+      if (path === '/api/report-note') {
+        const c = getClient(url.searchParams.get('client')); const mes = url.searchParams.get('mes') || '';
+        if (!c || !/^\d{4}-\d{2}$/.test(mes)) return json({ error: 'Datos no válidos' }, 400);
+        const key = `note:${c.slug}:${mes}`;
+        if (request.method === 'PUT') {
+          const { note = '' } = await request.json();
+          await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(key, String(note).slice(0, 3000)).run();
+          return json({ ok: true });
+        }
+        const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first();
+        return json({ note: row?.value || '' });
+      }
+
+      const rp = path.match(/^\/reporte\/([a-z0-9-]+)$/);
+      if (rp && request.method === 'GET') {
+        const c = getClient(rp[1]);
+        if (!c) return html('<h1>Cliente no encontrado</h1>', 404);
+        const t = new Date(); const def = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
+        const mes = /^\d{4}-\d{2}$/.test(url.searchParams.get('mes') || '') ? url.searchParams.get('mes') : def;
+        const note = (await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(`note:${c.slug}:${mes}`).first())?.value || '';
+        return html(await renderReport(env, c, mes, { note }));
       }
 
       if (path === '/api/sync' && request.method === 'POST') {

@@ -226,6 +226,30 @@ details.hist[open] summary{margin-bottom:14px}
 .u-ok{padding:18px 20px;color:var(--mut);font-size:14px}
 .u-ok b{color:var(--grn)}
 .chip.fb{border-left-color:#4F8EF7;color:var(--txt)}
+.sheet.one{grid-template-columns:1fr;max-width:860px}
+.cnt{letter-spacing:.04em;text-transform:none;color:var(--dim)}
+.bad{color:var(--org)!important}
+.prog{display:flex;flex-direction:column;gap:12px}
+.pc{display:grid;grid-template-columns:150px 1fr;gap:16px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.pc.is-done{opacity:.6}
+.pc-img img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:10px;display:block}
+.pc-img{background:#0d0d0d;border-radius:10px;min-height:120px;display:flex;align-items:center;justify-content:center}
+.pc-h{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.pc-t{font-weight:900;font-size:17px;letter-spacing:-.02em;margin-top:6px}
+.pc-m{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:4px}
+.pc-cap{white-space:pre-wrap;font-size:13px;line-height:1.5;color:#d9d6d0;background:#0f0f0f;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;max-height:150px;overflow:auto}
+.pc-a{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pc-a .btn{padding:7px 12px;font-size:11px}
+.btn.ghost2{background:none}
+.pdone{margin-top:14px}.pdone summary{cursor:pointer;font-family:var(--mono);font-size:12px;color:var(--mut);margin-bottom:10px}
+.gl{display:flex;flex-direction:column;gap:10px;max-height:62vh;overflow:auto;padding-right:4px}
+.gi2{display:grid;grid-template-columns:22px 120px 1fr;gap:12px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.gi2 .gimg img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:8px}
+.gi2 .gfm{display:flex;flex-direction:column;gap:8px}
+.gi2 textarea{min-height:120px}
+.ck input{width:16px;height:16px;margin-top:4px}
+@media (max-width:760px){.pc{grid-template-columns:90px 1fr}.gi2{grid-template-columns:22px 80px 1fr}}
+
 @media (max-width:700px){.u-item{grid-template-columns:10px 1fr;}.u-cl{grid-column:2}.u-tx{grid-column:2}.u-go{display:none}}
 .loading{color:var(--mut);padding:80px 0;text-align:center;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
 
@@ -378,8 +402,9 @@ async function renderClient(slug, tab = 'sitio') {
     <a class="back" href="#/"><span>←</span> Todos los clientes</a>
     <section class="d-h" style="--c:${esc(c.color)}">
       <div class="logo-wrap">${logoImg(c, 'lg')}<button class="logo-edit" id="logoBtn">Cambiar logo</button><input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden></div>
-      <div class="links">${d.links.map((l) => `<a class="btn" href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}</div>
+      <div class="links"><button class="btn pri" id="reportBtn">Descargar reporte</button>${d.links.map((l) => `<a class="btn" href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}</div>
     </section>
+    <div class="modal" id="rmodal" hidden></div>
 
     <nav class="ctabs" id="ctabs">
       <a href="#/c/${esc(slug)}/sitio" data-t="sitio">Sitio web</a>
@@ -450,6 +475,7 @@ async function renderClient(slug, tab = 'sitio') {
   renderSocial(d, slug);
   if (hasData && tab === 'sitio') drawChart(d.series, c.color);
   $('#tabs').addEventListener('click', (e) => { const m = e.target.dataset.m; if (!m) return; chartMetric = m; $('#tabs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === m)); if (hasData) drawChart(d.series, c.color); });
+  $('#reportBtn').addEventListener('click', () => openReport(slug, c));
   $('#logoBtn').addEventListener('click', () => $('#logoFile').click());
   $('#logoFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -565,10 +591,13 @@ function renderSocial(d, slug) {
     ${c.setup.ig ? `<section class="kgrid">${metrics.map(kp).join('')}</section>`
       : `<section class="panel"><div class="empty"><b>Instagram aún no está conectado.</b><br>Pon el ID de su cuenta en <code>src/clients.js</code> y presiona “Actualizar datos”. El calendario ya lo puedes usar.</div></section>`}
 
+    <section class="panel" id="prog"></section>
+
     <section class="panel">
       <div class="panel-h">
         <h3>calendario de contenido</h3>
         <div class="cal-h"><button class="nav" id="calPrev" aria-label="Mes anterior">‹</button><span class="mon" id="calMon"></span><button class="nav" id="calNext" aria-label="Mes siguiente">›</button>
+        <button class="btn pur" id="gridUp">Subir parrilla</button><input type="file" id="gridFile" accept="application/pdf,.pdf,application/json,.json" hidden>
         <button class="btn pri" id="calNew">+ Nuevo post</button></div>
       </div>
       <div class="legend">${Object.entries(PSTATUS).map(([k2, v]) => `<span><i class="sc-${k2}" style="background:var(--sc)"></i>${v}</span>`).join('')}<span><i style="background:#4F8EF7"></i>Programado en Facebook</span><span><i style="background:#5A5854"></i>Ya en Instagram</span></div>
@@ -594,7 +623,10 @@ function renderSocial(d, slug) {
   $('#calPrev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); drawCal(d, slug); });
   $('#calNext').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); drawCal(d, slug); });
   $('#calNew').addEventListener('click', () => openEditor(slug, { date: ymd(new Date()), status: 'borrador', network: 'instagram', format: 'post' }, d));
+  $('#gridUp').addEventListener('click', () => $('#gridFile').click());
+  $('#gridFile').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importGrid(f, slug, d); });
   drawCal(d, slug);
+  drawProg(d, slug);
 }
 
 async function drawCal(d, slug) {
@@ -648,7 +680,8 @@ function openEditor(slug, it, d) {
       <div class="row"><label>Fecha<input type="date" name="date" value="${esc(it.date)}" required></label><label>Hora<input type="time" name="time" value="${esc(it.time || '')}"></label></div>
       <div class="row"><label>Red<select name="network">${opt(PNET, it.network)}</select></label><label>Formato<select name="format">${opt(PFORMAT, it.format)}</select></label></div>
       <label>Título interno<input type="text" name="title" value="${esc(it.title || '')}" maxlength="120" placeholder="Ej. Reel Japón abril"></label>
-      <label>Copy<textarea name="copy" maxlength="2200" placeholder="Texto del post, hashtags van en el primer comentario">${esc(it.copy || '')}</textarea></label>
+      <label>Caption <span class="cnt" id="edCnt"></span><textarea name="copy" maxlength="2200" placeholder="Texto del post con sus hashtags">${esc(it.copy || '')}</textarea></label>
+      <div class="acts"><button type="button" class="btn" id="edCopy">Copiar caption</button></div>
       <label>Estado<select name="status">${opt(PSTATUS, it.status)}</select></label>
       <div class="acts">
         ${isNew ? '' : '<button type="button" class="btn ghost" id="edDel">Borrar</button>'}<span class="sp"></span>
@@ -662,6 +695,9 @@ function openEditor(slug, it, d) {
   m.onclick = (e) => { if (e.target === m) close(); };
   $('#edClose').onclick = close;
   $('#edPick').onclick = () => $('#edFile').click();
+  const cnt = () => { const v = $('#edForm').copy.value; $('#edCnt').textContent = capStats(v).label; };
+  $('#edForm').copy.addEventListener('input', cnt); cnt();
+  $('#edCopy').onclick = () => copyText($('#edForm').copy.value, 'Caption copiado');
   $('#edFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return;
     try { image = await compress(f); $('#edImg').querySelector('img, .eyebrow').outerHTML = `<img src="${image}" alt="">`; } catch (err) { toast(err.message); } };
   const save = async (extra = {}) => {
@@ -671,16 +707,300 @@ function openEditor(slug, it, d) {
       if (isNew) await api('/api/plan', { method: 'POST', body: JSON.stringify({ client: slug, ...body }) });
       else await api('/api/plan/' + it.id, { method: 'PATCH', body: JSON.stringify(body) });
       close(); toast(extra.status === 'por_aprobar' ? 'Listo: el cliente ya lo puede aprobar' : 'Guardado');
-      calMonth = new Date(+body.date.slice(0, 4), +body.date.slice(5, 7) - 1, 1); drawCal(d, slug);
+      calMonth = new Date(+body.date.slice(0, 4), +body.date.slice(5, 7) - 1, 1); drawCal(d, slug); drawProg(d, slug);
     } catch (err) { toast(err.message); }
   };
   $('#edForm').onsubmit = (e) => { e.preventDefault(); save(); };
   $('#edSend') && ($('#edSend').onclick = () => save({ status: 'por_aprobar' }));
-  $('#edDel') && ($('#edDel').onclick = async () => { if (!confirmDel()) return; await api('/api/plan/' + it.id, { method: 'DELETE' }); close(); toast('Borrado'); drawCal(d, slug); });
+  $('#edDel') && ($('#edDel').onclick = async () => { if (!confirmDel()) return; await api('/api/plan/' + it.id, { method: 'DELETE' }); close(); toast('Borrado'); drawCal(d, slug); drawProg(d, slug); });
 }
 // Doble clic para borrar (sin diálogos del navegador)
 let delArm = 0;
 function confirmDel() { if (Date.now() - delArm < 3000) return true; delArm = Date.now(); toast('Presiona “Borrar” otra vez para confirmar'); return false; }
+
+
+// ---------------- para programar en Meta ----------------
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function copyText(t, msg) { navigator.clipboard.writeText(t || '').then(() => toast(msg || 'Copiado'), () => toast('No se pudo copiar')); }
+function splitTags(caption) {
+  const lines = String(caption || '').split('\n'); let i = lines.length;
+  while (i > 0 && (/^\s*(#[^\s#]+\s*)+$/.test(lines[i - 1]) || !lines[i - 1].trim())) i--;
+  const tags = lines.slice(i).join(' ').match(/#[^\s#]+/g) || [];
+  return { body: lines.slice(0, i).join('\n').trim(), tags: tags.join(' ') };
+}
+function capStats(v) {
+  const tags = (String(v || '').match(/#[^\s#]+/g) || []).length; const n = String(v || '').length;
+  const warn = n > 2200 || tags > 30;
+  return { n, tags, warn, label: `${nf.format(n)}/2,200 · ${tags} hashtags${tags > 30 ? ' (máx. 30)' : ''}` };
+}
+let BEST = {};
+async function drawProg(d, slug) {
+  const el = $('#prog'); if (!el) return;
+  const from = ymd(new Date()); const t = new Date(); t.setDate(t.getDate() + 35); const to = ymd(t);
+  const [{ items }, best] = await Promise.all([api(`/api/plan?client=${slug}&from=${from}&to=${to}`), BEST[slug] ? Promise.resolve(BEST[slug]) : api('/api/best-time?client=' + slug).catch(() => ({}))]);
+  BEST[slug] = best;
+  const todo = items.filter((i) => !['programado', 'publicado'].includes(i.status));
+  const done = items.filter((i) => i.status === 'programado');
+  const bs = (d.links || []).find((l) => l.label === 'Business Suite');
+  const when = (i) => { const x = new Date(i.date + 'T12:00:00'); return `${x.toLocaleDateString('es-MX', { weekday: 'long' })} ${x.getDate()} de ${MESES[x.getMonth()]}`; };
+  el.innerHTML = `<div class="panel-h"><h3>para programar en meta</h3>
+      <div class="cal-h">${best.hour ? `<span class="eyebrow" title="Promedio de reproducciones por hora, con los últimos ${best.basis} posts">Mejor hora: <b style="color:var(--txt)">${esc(best.hour)}</b></span>` : ''}
+      ${bs ? `<a class="btn" href="${esc(bs.href)}" target="_blank" rel="noopener">Abrir Business Suite ↗</a>` : ''}</div></div>
+    ${!items.length ? `<div class="empty">No hay posts en las próximas 5 semanas. Sube la parrilla del mes con <b>“Subir parrilla”</b> y aparecen aquí listos para copiar.</div>` : ''}
+    ${todo.length ? `<div class="prog">${todo.map((i) => progCard(i, when, best)).join('')}</div>` : items.length ? '<div class="empty">Todo lo de las próximas semanas ya está programado ✓</div>' : ''}
+    ${done.length ? `<details class="pdone"><summary>${done.length} ya programado${done.length > 1 ? 's' : ''} en Meta</summary><div class="prog">${done.map((i) => progCard(i, when, best)).join('')}</div></details>` : ''}`;
+  el.onclick = async (e) => {
+    const b = e.target.closest('[data-a]'); if (!b) return;
+    const it = items.find((i) => i.id == b.closest('[data-id]').dataset.id); if (!it) return;
+    const { body, tags } = splitTags(it.copy);
+    const a = b.dataset.a;
+    if (a === 'copy') copyText(it.copy, 'Caption copiado. Pégalo en Meta.');
+    if (a === 'body') copyText(body, 'Caption sin hashtags copiado');
+    if (a === 'tags') copyText(tags, 'Hashtags copiados (para el primer comentario)');
+    if (a === 'edit') openEditor(slug, it, d);
+    if (a === 'done' || a === 'undo') {
+      b.disabled = true;
+      try { await api('/api/plan/' + it.id, { method: 'PATCH', body: JSON.stringify({ status: a === 'done' ? 'programado' : 'aprobado' }) });
+        toast(a === 'done' ? 'Marcado como programado en Meta' : 'Regresó a pendientes'); drawProg(d, slug); drawCal(d, slug); } catch (err) { toast(err.message); b.disabled = false; }
+    }
+    if (a === 'dl') downloadSlides(it, d.client);
+    if (a === 'up') { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+      inp.onchange = () => uploadSlides(it, [...inp.files], () => drawProg(d, slug)); inp.click(); }
+  };
+}
+function progCard(i, when, best) {
+  const st = capStats(i.copy); const done = i.status === 'programado';
+  return `<div class="pc ${done ? 'is-done' : ''}" data-id="${i.id}">
+    <div class="pc-img">${i.has_image ? `<img src="/api/plan/${i.id}/img?v=${encodeURIComponent(i.updated_at)}" alt="">` : '<span class="eyebrow">Sin imagen</span>'}</div>
+    <div class="pc-b">
+      <div class="pc-h"><span class="eyebrow">${esc(when(i))} · ${i.time ? esc(i.time) : best.hour ? `${esc(best.hour)} <span title="Hora sugerida">(sugerida)</span>` : 'sin hora'}</span>
+        <span class="pill sc-${esc(i.status)}" style="border-color:var(--sc)">${esc(PSTATUS[i.status])}</span></div>
+      <div class="pc-t">${esc(i.title || PFORMAT[i.format])}</div>
+      <div class="pc-m">${esc(PFORMAT[i.format])}${i.slides ? ` · ${i.slides} láminas` : ''} · <span class="${st.warn ? 'bad' : ''}">${esc(st.label)}</span></div>
+      <div class="pc-cap">${esc(i.copy || 'Sin caption todavía')}</div>
+      <div class="pc-a">
+        <button class="btn pri" data-a="copy" ${i.copy ? '' : 'disabled'}>Copiar caption</button>
+        <button class="btn" data-a="body" ${i.copy ? '' : 'disabled'} title="Para poner los hashtags en el primer comentario">Sin hashtags</button>
+        <button class="btn" data-a="tags" ${/#/.test(i.copy || '') ? '' : 'disabled'}>Solo hashtags</button>
+        ${i.slides ? `<button class="btn" data-a="dl">Descargar láminas</button>` : i.has_image ? `<button class="btn" data-a="dl">Descargar imagen</button>` : ''}
+        <button class="btn" data-a="up">${i.slides ? 'Cambiar láminas' : 'Subir láminas'}</button>
+        <button class="btn ghost2" data-a="edit">Editar</button>
+        ${done ? '<button class="btn" data-a="undo">Desmarcar</button>' : '<button class="btn pur" data-a="done">Ya lo programé ✓</button>'}
+      </div>
+    </div></div>`;
+}
+// Láminas en alta (máx. 1440 px), en el orden de los nombres de archivo
+function compressHi(file) {
+  return new Promise((res, rej) => { const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => { const r = Math.min(1, 1440 / Math.max(img.width, img.height)); const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * r); cv.height = Math.round(img.height * r); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', 0.9)); };
+    img.onerror = () => rej(new Error('No se pudo leer ' + file.name)); img.src = url; });
+}
+async function uploadSlides(it, files, done) {
+  if (!files.length) return;
+  files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  try {
+    toast(`Subiendo ${files.length} láminas…`);
+    await api(`/api/plan/${it.id}/slides`, { method: 'DELETE' });
+    for (let k = 0; k < files.length; k++) {
+      const image = await compressHi(files[k]);
+      await api(`/api/plan/${it.id}/slides/${k + 1}`, { method: 'PUT', body: JSON.stringify({ image }) });
+    }
+    if (!it.has_image) await api('/api/plan/' + it.id, { method: 'PATCH', body: JSON.stringify({ image: await compress(files[0]), ...(files.length > 1 && it.format === 'post' ? { format: 'carrusel' } : {}) }) });
+    toast('Láminas listas ✓'); done();
+  } catch (err) { toast(err.message); }
+}
+async function downloadSlides(it, client) {
+  const base = `${client.slug}_${it.date}_${(it.title || 'post').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}`;
+  const urls = it.slides ? Array.from({ length: it.slides }, (_, k) => `/api/plan/${it.id}/slides/${k + 1}`) : [`/api/plan/${it.id}/img`];
+  try {
+    toast('Preparando descarga…');
+    if (urls.length === 1) { const b = await (await fetch(urls[0])).blob(); return saveBlob(b, base + '.jpg'); }
+    const { default: JSZip } = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+    const zip = new JSZip();
+    for (let k = 0; k < urls.length; k++) zip.file(`${String(k + 1).padStart(2, '0')}.jpg`, await (await fetch(urls[k])).blob());
+    saveBlob(await zip.generateAsync({ type: 'blob' }), base + '.zip');
+  } catch (err) { toast('No se pudo descargar: ' + err.message); }
+}
+function saveBlob(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+
+// ---------------- subir parrilla (PDF de Strove o JSON) ----------------
+const MONTHS_UP = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const normU = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').toUpperCase();
+let pdfjsLib;
+async function loadPdfjs() {
+  if (pdfjsLib) return pdfjsLib;
+  pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  return pdfjsLib;
+}
+// Reconstruye renglones a partir de los pedazos de texto del PDF
+function pdfLines(items, minX = -1, maxX = 1e9) {
+  const rows = [];
+  for (const i of items) {
+    const x = i.transform[4], y = i.transform[5];
+    if (x < minX || x >= maxX || !i.str) continue;
+    let r = rows.find((r) => Math.abs(r.y - y) < 2); if (!r) { r = { y, its: [] }; rows.push(r); } r.its.push(i);
+  }
+  rows.sort((a, b) => b.y - a.y);
+  return rows.map((r) => { r.its.sort((a, b) => a.transform[4] - b.transform[4]); let s = '', end = null;
+    for (const i of r.its) { const x = i.transform[4], fs = Math.abs(i.transform[0]) || i.height;
+      if (end !== null && x - end > fs * 0.18 && !s.endsWith(' ') && !i.str.startsWith(' ')) s += ' '; s += i.str; end = x + i.width; }
+    return { y: r.y, x: r.its[0].transform[4], right: end, h: Math.max(...r.its.map((i) => i.height)), text: s.replace(/\s+/g, ' ').trim() }; })
+    .filter((l) => l.text);
+}
+function fixParens(line) { // algunos PDFs pierden el "(": "Alsacia 4 a 5 días)" → "Alsacia (4 a 5 días)"
+  let t = line, guard = 0;
+  while ((t.match(/\)/g) || []).length > (t.match(/\(/g) || []).length && guard++ < 5) {
+    if (/[\uE000-\uF8FF]/.test(t)) { t = t.replace(/[\uE000-\uF8FF]/, '('); continue; } // el "(" vino como carácter privado de la fuente
+    const close = t.indexOf(')'); const before = t.slice(0, close);
+    const m = before.match(/\s(\d[^()]*)$/) || before.match(/\s([^\s()]+)$/);
+    if (!m) break; fixParens.guessed = true;
+    const at = before.length - m[1].length; t = t.slice(0, at) + '(' + t.slice(at);
+  }
+  return t.replace(/[\uE000-\uF8FF]/g, '');
+}
+async function bigImage(pdfjs, page) {
+  const ops = await page.getOperatorList(); let best = null;
+  for (let k = 0; k < ops.fnArray.length; k++) if (ops.fnArray[k] === pdfjs.OPS.paintImageXObject) { const [id, w, h] = ops.argsArray[k]; if (!best || w * h > best.w * best.h) best = { id, w, h }; }
+  if (!best || best.w < 400) return null;
+  const store = best.id.startsWith('g_') ? page.commonObjs : page.objs;
+  const img = await new Promise((res) => { try { store.get(best.id, res); } catch { res(null); } });
+  if (!img) return null;
+  const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const ctx = cv.getContext('2d');
+  if (img.bitmap) ctx.drawImage(img.bitmap, 0, 0);
+  else if (img.data) { const out = ctx.createImageData(img.width, img.height); const src = img.data, n = img.width * img.height;
+    const per = src.length / n; for (let p = 0; p < n; p++) { out.data[p * 4] = src[p * per]; out.data[p * 4 + 1] = src[p * per + (per > 1 ? 1 : 0)]; out.data[p * 4 + 2] = src[p * per + (per > 1 ? 2 : 0)]; out.data[p * 4 + 3] = 255; }
+    ctx.putImageData(out, 0, 0); }
+  else return null;
+  const r = Math.min(1, 1080 / Math.max(cv.width, cv.height));
+  if (r < 1) { const c2 = document.createElement('canvas'); c2.width = Math.round(cv.width * r); c2.height = Math.round(cv.height * r); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height); return c2.toDataURL('image/jpeg', 0.85); }
+  return cv.toDataURL('image/jpeg', 0.85);
+}
+async function parseGridPdf(file, progress) {
+  const pdfjs = await loadPdfjs();
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  let year = new Date().getFullYear(), coverMonth = null; const posts = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    progress(`Leyendo página ${n} de ${doc.numPages}…`);
+    const page = await doc.getPage(n); const { items } = await page.getTextContent();
+    const L = pdfLines(items);
+    if (coverMonth == null) { const m = L.map((l) => l.text).join(' ').match(/(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(20\d\d)/i);
+      if (m) { coverMonth = MONTHS_UP.indexOf(m[1].toUpperCase()); year = +m[2]; } }
+    const capL = L.find((l) => normU(l.text).startsWith('CAPTION'));
+    if (!capL) continue;
+    const hdr = L.find((l) => /(\d{1,2})DE(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)/.test(normU(l.text)));
+    const hm = hdr && normU(hdr.text).match(/(\d{1,2})DE(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)/);
+    let date = null;
+    if (hm) { const mi = MONTHS_UP.indexOf(hm[2]); const y = coverMonth === 11 && mi === 0 ? year + 1 : year; date = `${y}-${String(mi + 1).padStart(2, '0')}-${hm[1].padStart(2, '0')}`; }
+    // Título: los renglones con letra más grande arriba del caption
+    const above = L.filter((l) => l.y > capL.y + 2 && l !== hdr && !normU(l.text).includes('···'));
+    const maxH = Math.max(0, ...above.map((l) => l.h));
+    const title = fixParens(above.filter((l) => l.h >= maxH - 1).map((l) => l.text).join(' ').trim());
+    const all = normU(L.map((l) => l.text).join(' '));
+    const stopL = L.find((l) => /^(CARRUSELCOMPLETO|REELCOMPLETO|LAMINAS)/.test(normU(l.text)));
+    const stopY = stopL ? stopL.y + 4 : -1;
+    const col = pdfLines(items, capL.x - 4).filter((l) => l.y < capL.y - 2 && l.y > stopY);
+    const right = Math.max(...col.map((l) => l.right));
+    const gaps = col.slice(1).map((l, k) => col[k].y - l.y).sort((a, b) => a - b); const lh = gaps[Math.floor(gaps.length / 4)] || 12;
+    let cap = '', fixed = false;
+    col.forEach((l, k) => {
+      fixParens.guessed = false; const t = fixParens(l.text); if (fixParens.guessed) fixed = true;
+      if (!k) { cap = t; return; }
+      const prev = col[k - 1]; const gap = prev.y - l.y;
+      const bothTags = /^#/.test(t) && /(^|\s)#\S+$/.test(prev.text);
+      if (gap > lh * 1.5) cap += '\n\n' + t;
+      else if (bothTags) cap += ' ' + t;
+      else if (prev.right + (t.split(' ')[0].length + 1) * l.h * 0.55 < right || /^(\d+[.)]|[-•·])\s/.test(t) || (/[.!?]$/.test(prev.text) && /^[A-ZÁÉÍÓÚÑ¿¡]/.test(t))) cap += '\n' + t; // el renglón anterior terminó solo (no se partió)
+      else cap += ' ' + t;
+    });
+    const sm = all.match(/(\d+)LAMINAS/);
+    const format = all.includes('CARRUSEL') ? 'carrusel' : all.includes('REEL') ? 'reel' : 'post';
+    progress(`Sacando la imagen de la página ${n}…`);
+    let image = null; try { image = await bigImage(pdfjs, page); } catch { /* sin imagen */ }
+    posts.push({ date, title: title.slice(0, 120), copy: cap.slice(0, 2200), format, slides: sm ? +sm[1] : null, image,
+      warn: [!date && 'No encontré la fecha', fixed && 'Revisa los paréntesis'].filter(Boolean) });
+  }
+  return posts;
+}
+function parseGridJson(text) { // { posts: [{ fecha|date, hora|time, titulo|title, formato|format, caption|copy }] }
+  const j = JSON.parse(text); const arr = Array.isArray(j) ? j : j.posts || [];
+  return arr.map((p) => ({ date: p.fecha || p.date, time: p.hora || p.time || '', title: (p.titulo || p.title || '').slice(0, 120), copy: (p.caption || p.copy || '').slice(0, 2200),
+    format: ['post', 'carrusel', 'reel', 'historia'].includes(p.formato || p.format) ? (p.formato || p.format) : 'post', image: null, warn: [] }));
+}
+async function importGrid(file, slug, d) {
+  const m = $('#modal');
+  m.innerHTML = `<div class="sheet one"><div class="fm"><h3>subir parrilla</h3><div class="empty" id="gp">Abriendo ${esc(file.name)}…</div></div></div>`; m.hidden = false;
+  let posts;
+  try {
+    posts = /\.json$/i.test(file.name) ? parseGridJson(await file.text()) : await parseGridPdf(file, (t) => { const g = $('#gp'); if (g) g.textContent = t; });
+  } catch (err) { $('#gp').innerHTML = `No pude leer el archivo: ${esc(err.message)}`; return; }
+  if (!posts.length) { $('#gp').innerHTML = 'No encontré posts en este archivo. Debe ser una parrilla con la etiqueta <b>CAPTION</b> en cada post.'; return; }
+  const best = BEST[slug] || (BEST[slug] = await api('/api/best-time?client=' + slug).catch(() => ({})));
+  m.innerHTML = `<div class="sheet one"><form class="fm" id="gForm">
+    <h3>subir parrilla · ${posts.length} posts</h3>
+    <div class="eyebrow" style="line-height:1.6">Revisa fechas y captions. Si un post ya existe (misma fecha y título), se actualiza en vez de duplicarse.</div>
+    <div class="row"><label>Estado al guardar<select name="status">${Object.entries(PSTATUS).filter(([k2]) => ['borrador', 'por_aprobar', 'aprobado'].includes(k2)).map(([k2, l]) => `<option value="${k2}" ${k2 === 'aprobado' ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label>Hora para todos<input type="time" name="time" value="${esc(best.hour || '')}"></label></div>
+    <div class="gl">${posts.map((p, k) => `<div class="gi2" data-k="${k}">
+      <label class="ck"><input type="checkbox" name="on${k}" checked></label>
+      <div class="gimg">${p.image ? `<img src="${p.image}" alt="">` : '<span class="eyebrow">Sin imagen</span>'}</div>
+      <div class="gfm"><div class="row"><label>Fecha<input type="date" name="d${k}" value="${esc(p.date || '')}" required></label><label>Formato<select name="f${k}">${Object.entries(PFORMAT).map(([k2, l]) => `<option value="${k2}" ${k2 === p.format ? 'selected' : ''}>${l}${k2 === 'carrusel' && p.slides ? ` (${p.slides})` : ''}</option>`).join('')}</select></label></div>
+        <label>Título<input type="text" name="t${k}" value="${esc(p.title)}" maxlength="120"></label>
+        <label>Caption ${p.warn.length ? `<span class="bad">· ${esc(p.warn.join(' · '))}</span>` : ''}<textarea name="c${k}" maxlength="2200">${esc(p.copy)}</textarea></label></div>
+    </div>`).join('')}</div>
+    <div class="acts"><span class="sp"></span><button type="button" class="btn" id="gCancel">Cancelar</button><button type="submit" class="btn pri" id="gSave">Guardar en el calendario</button></div>
+  </form></div>`;
+  const close = () => { m.hidden = true; m.innerHTML = ''; };
+  $('#gCancel').onclick = close;
+  $('#gForm').onsubmit = async (e) => {
+    e.preventDefault(); const f = e.target; const btn = $('#gSave'); btn.disabled = true;
+    const chosen = posts.map((p, k) => ({ ...p, on: f['on' + k].checked, date: f['d' + k].value, format: f['f' + k].value, title: f['t' + k].value, copy: f['c' + k].value })).filter((p) => p.on && p.date);
+    if (!chosen.length) { toast('No hay posts seleccionados'); btn.disabled = false; return; }
+    const dates = chosen.map((p) => p.date).sort();
+    try {
+      const { items } = await api(`/api/plan?client=${slug}&from=${dates[0]}&to=${dates[dates.length - 1]}`);
+      let k = 0;
+      for (const p of chosen) {
+        btn.textContent = `Guardando ${++k} de ${chosen.length}…`;
+        const body = { date: p.date, time: p.time || f.time.value || '', network: 'instagram', format: p.format, title: p.title, copy: p.copy, status: f.status.value, ...(p.image ? { image: p.image } : {}) };
+        const ex = items.find((i) => i.date === p.date && (i.title || '').trim().toLowerCase() === p.title.trim().toLowerCase());
+        if (ex) await api('/api/plan/' + ex.id, { method: 'PATCH', body: JSON.stringify(body) });
+        else await api('/api/plan', { method: 'POST', body: JSON.stringify({ client: slug, ...body }) });
+      }
+      close(); toast(`${chosen.length} posts en el calendario ✓`);
+      calMonth = new Date(+dates[0].slice(0, 4), +dates[0].slice(5, 7) - 1, 1); drawCal(d, slug); drawProg(d, slug);
+    } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Guardar en el calendario'; }
+  };
+}
+
+// ---------------- reporte mensual ----------------
+async function openReport(slug, c) {
+  const m = $('#rmodal'); const t = new Date();
+  const opts = Array.from({ length: 6 }, (_, k) => { const x = new Date(t.getFullYear(), t.getMonth() - k, 1); return { v: `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`, l: `${MESES[x.getMonth()]} ${x.getFullYear()}` }; });
+  const def = t.getDate() <= 7 ? opts[1].v : opts[0].v;
+  m.innerHTML = `<div class="sheet one"><form class="fm" id="rForm">
+    <h3>reporte mensual</h3>
+    <div class="eyebrow" style="line-height:1.6">Se arma con los datos del Hub: Instagram, sitio, Google y pauta. Se abre en otra pestaña lista para guardar como PDF.</div>
+    <label>Mes<select name="mes">${opts.map((o) => `<option value="${o.v}" ${o.v === def ? 'selected' : ''}>${o.l}${o.v === opts[0].v ? ' (en curso)' : ''}</option>`).join('')}</select></label>
+    <label>Lectura de Strove (opcional)<textarea name="note" placeholder="Qué funcionó, qué vamos a cambiar el próximo mes, recomendaciones…" maxlength="3000"></textarea></label>
+    <div class="acts"><span class="sp"></span><button type="button" class="btn" id="rView">Solo ver</button><button type="submit" class="btn pri">Descargar PDF</button></div>
+  </form></div>`;
+  m.hidden = false;
+  const f = $('#rForm');
+  const load = async () => { try { f.note.value = (await api(`/api/report-note?client=${slug}&mes=${f.mes.value}`)).note; } catch { /* nada */ } };
+  load(); f.mes.onchange = load;
+  m.onclick = (e) => { if (e.target === m) { m.hidden = true; m.innerHTML = ''; } };
+  const go = async (print) => {
+    const w = window.open('about:blank', '_blank');
+    try { await api(`/api/report-note?client=${slug}&mes=${f.mes.value}`, { method: 'PUT', body: JSON.stringify({ note: f.note.value }) }); } catch { /* seguimos */ }
+    w.location = `/reporte/${slug}?mes=${f.mes.value}${print ? '&print=1' : ''}`;
+    m.hidden = true; m.innerHTML = '';
+  };
+  $('#rView').onclick = () => go(false);
+  f.onsubmit = (e) => { e.preventDefault(); go(true); };
+}
 
 // ---------------- router ----------------
 async function route() {

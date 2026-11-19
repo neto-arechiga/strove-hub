@@ -132,3 +132,11 @@ CREATE TABLE IF NOT EXISTS scheduled_posts (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (client, network, id)
 );
+
+-- Láminas de cada post del calendario (carruseles), en orden
+CREATE TABLE IF NOT EXISTS plan_slides (
+  plan_id INTEGER NOT NULL,
+  idx     INTEGER NOT NULL,
+  image   TEXT NOT NULL,         -- data URL
+  PRIMARY KEY (plan_id, idx)
+);
