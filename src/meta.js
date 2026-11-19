@@ -40,24 +40,38 @@ export async function fetchInstagram(env, client, days) {
     fields: 'id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,like_count,comments_count',
     limit: 30,
   });
+  const list = media.data || [];
+  // Métricas de todos los posts en UNA sola llamada (batch de Graph): cuida el límite de subrequests del Worker
+  const insById = {};
+  if (list.length) {
+    try {
+      const body = new URLSearchParams({
+        access_token: String(env.META_TOKEN).trim(),
+        batch: JSON.stringify(list.map((m) => ({ method: 'GET', relative_url: `${m.id}/insights?metric=views,reach,saved,shares` }))),
+      });
+      const res = await fetch(`https://graph.facebook.com/${ver(env)}/`, { method: 'POST', body });
+      const out = await res.json();
+      (Array.isArray(out) ? out : []).forEach((r, i) => {
+        if (!r || r.code !== 200) return; // posts viejos o de otro tipo pueden no traer insights
+        try { insById[list[i].id] = JSON.parse(r.body).data || []; } catch { /* ignora */ }
+      });
+    } catch { /* sin métricas por post esta vez */ }
+  }
   const posts = [];
-  for (const m of media.data || []) {
+  for (const m of list) {
     const p = {
       id: m.id, type: m.media_product_type === 'REELS' ? 'REEL' : m.media_type, caption: (m.caption || '').slice(0, 600),
       permalink: m.permalink, thumb: m.thumbnail_url || m.media_url || null, published_at: m.timestamp,
       local_date: localDate(m.timestamp), likes: m.like_count ?? null, comments: m.comments_count ?? null,
       views: null, reach: null, saves: null, shares: null,
     };
-    try {
-      const ins = await graph(env, `${m.id}/insights`, { metric: 'views,reach,saved,shares' });
-      for (const x of ins.data || []) {
-        const v = x.values?.[0]?.value ?? x.total_value?.value ?? null;
-        if (x.name === 'views') p.views = v;
-        if (x.name === 'reach') p.reach = v;
-        if (x.name === 'saved') p.saves = v;
-        if (x.name === 'shares') p.shares = v;
-      }
-    } catch { /* posts muy viejos o de otro tipo pueden no traer insights */ }
+    for (const x of insById[m.id] || []) {
+      const v = x.values?.[0]?.value ?? x.total_value?.value ?? null;
+      if (x.name === 'views') p.views = v;
+      if (x.name === 'reach') p.reach = v;
+      if (x.name === 'saved') p.saves = v;
+      if (x.name === 'shares') p.shares = v;
+    }
     posts.push(p);
   }
   return { rows, posts, username: profile.username };

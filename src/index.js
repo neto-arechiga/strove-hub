@@ -361,6 +361,17 @@ async function handleForm(request, env, slug, url) {
 }
 
 // ---------- router ----------
+// Cada cliente en su propia invocación: así ninguno choca con el límite de subrequests de Cloudflare
+async function syncAllSplit(env, days) {
+  if (!env.SELF) return syncAll(env, days);
+  for (const c of CLIENTS) {
+    try {
+      const token = await formToken(env, c.slug, 'internal');
+      await env.SELF.fetch(`https://hub.internal/internal/sync?client=${c.slug}&days=${days}`, { method: 'POST', headers: { 'x-internal': token } });
+    } catch { /* el siguiente cliente sigue */ }
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     await ensureSchema(env);
@@ -378,6 +389,16 @@ export default {
 
     // El Worker de clientes (strove-clientes) solo sirve las páginas públicas de arriba
     if (env.PUBLIC_ONLY === '1') return html('<h1>Página no encontrada</h1>', 404);
+
+    // Sincronización interna: el cron manda cada cliente en su propia invocación (vía service binding)
+    if (path === '/internal/sync' && request.method === 'POST') {
+      const slug = url.searchParams.get('client') || '';
+      if (!(await checkFormToken(env, slug, request.headers.get('x-internal'), 'internal'))) return json({ error: 'No' }, 403);
+      const c = getClient(slug);
+      if (!c) return json({ error: 'Cliente no encontrado' }, 404);
+      const days = Math.min(Math.max(parseInt(url.searchParams.get('days') || '10', 10), 1), 480);
+      return json({ [slug]: await syncClient(env, c, days) });
+    }
 
     // Todo lo demás requiere login
     const user = await accessUser(request, env);
@@ -443,7 +464,8 @@ export default {
           if (!c) return json({ error: 'Cliente no encontrado' }, 404);
           return json({ [slug]: await syncClient(env, c, days) });
         }
-        return json(await syncAll(env, days));
+        await syncAllSplit(env, days);
+        return json({ ok: true });
       }
 
       if (path === '/api/requests' && request.method === 'POST') {
@@ -488,7 +510,7 @@ export default {
   async scheduled(event, env, ctx) {
     if (env.PUBLIC_ONLY === '1') return;
     await ensureSchema(env);
-    if (event.cron === '0 10 * * *') ctx.waitUntil(syncAll(env, 10));
+    if (event.cron === '0 10 * * *') ctx.waitUntil(syncAllSplit(env, 10));
     else ctx.waitUntil(uptimeAll(env));
   },
 };
