@@ -161,7 +161,7 @@ export async function renderReport(env, c, mes, opts = {}) {
   if (hasIG) {
     const n = pad(++ch);
     pages.push(`<section class="page split">
-      <div class="sp-img" style="${img(top[0])}"><span class="sp-tag">El post del mes</span></div>
+      <div class="sp-img" style="background:${theme.bg}"><div class="sp-ph" style="${img(top[0])}"></div><span class="sp-tag">El post del mes</span></div>
       <div class="sp-txt">
         ${chap(n, 'Instagram')}
         <h2>Lo que más<br><i>conectó</i></h2>
@@ -309,8 +309,9 @@ h2{font-weight:400;font-size:40pt;line-height:.98}
 .ct{font-size:7pt;letter-spacing:.32em;text-transform:uppercase}
 /* apertura con foto */
 .split{padding:0;display:grid;grid-template-columns:47% 53%}
-.sp-img{background:#cfc9bb center/cover;position:relative}
-.sp-tag{position:absolute;left:.4in;bottom:.45in;color:#fff;font-size:6.8pt;letter-spacing:.3em;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.4)}
+.sp-img{position:relative;display:flex;align-items:center;justify-content:center}
+.sp-ph{width:76%;aspect-ratio:4/5;background:#cfc9bb center/cover;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.sp-tag{position:absolute;left:12%;bottom:.55in;color:#F3EFE6;font-size:6.8pt;letter-spacing:.3em;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.4)}
 .sp-txt{padding:.8in .65in 1in .5in}
 .sp-txt h2{margin-bottom:18px}
 .dek{font-size:14.5pt;line-height:1.3;font-style:italic;color:#2f2d29;margin-bottom:22px}
