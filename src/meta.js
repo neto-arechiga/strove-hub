@@ -135,3 +135,48 @@ export async function fetchScheduledFacebook(env, pageId, pageToken) {
       time: new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso)) };
   });
 }
+
+// ---------- Datos en vivo para el reporte mensual ----------
+async function igTotals(env, igId, metrics, since, until) {
+  try {
+    const d = await graph(env, `${igId}/insights`, { metric: metrics, period: 'day', metric_type: 'total_value', since, until });
+    return Object.fromEntries((d.data || []).map((x) => [x.name, x.total_value?.value ?? null]));
+  } catch { return {}; }
+}
+const ts = (iso, end) => Math.floor(Date.parse(iso + 'T06:00:00Z') / 1000) + (end ? 86400 : 0); // medianoche de Guadalajara
+
+// Totales del mes (alcance único, visitas al perfil, clics al enlace…), demografía de seguidores y pauta anuncio por anuncio
+export async function fetchReportLive(env, client, from, to, prevFrom, prevTo) {
+  const out = { cur: {}, prev: {}, demo: null, ads: [] };
+  if (client.social !== false && (client.igUserId || client.igUsername)) {
+    try {
+      const meta = await resolveMeta(env, client);
+      const ig = meta.igUserId;
+      // Instagram acepta rangos de máx. 30 días
+      const clamp = (a, b) => { const s = ts(a), e = ts(b, true); return [Math.max(s, e - 30 * 86400), e]; };
+      const [s1, e1] = clamp(from, to), [s0, e0] = clamp(prevFrom, prevTo);
+      const A = 'reach,views,total_interactions,accounts_engaged', B = 'profile_views,website_clicks';
+      const [c1, c2, p1, p2] = await Promise.all([igTotals(env, ig, A, s1, e1), igTotals(env, ig, B, s1, e1), igTotals(env, ig, A, s0, e0), igTotals(env, ig, B, s0, e0)]);
+      out.cur = { ...c1, ...c2 }; out.prev = { ...p1, ...p2 };
+      const demo = {};
+      for (const b of ['age', 'gender', 'city']) {
+        try {
+          const d = await graph(env, `${ig}/insights`, { metric: 'follower_demographics', period: 'lifetime', metric_type: 'total_value', breakdown: b });
+          demo[b] = (d.data?.[0]?.total_value?.breakdowns?.[0]?.results || []).map((r) => ({ label: r.dimension_values?.[0], value: r.value }));
+        } catch { /* cuentas con menos de 100 seguidores no tienen demografía */ }
+      }
+      if (Object.values(demo).some((v) => v?.length)) out.demo = demo;
+    } catch { /* sin Instagram en vivo */ }
+  }
+  if (client.adAccountId || client.adAccountName) {
+    try {
+      const adId = await resolveAdAccount(env, client);
+      const d = await graph(env, `act_${adId}/insights`, { level: 'ad', fields: 'ad_name,ad_id,reach,impressions,spend,clicks,actions', time_range: JSON.stringify({ since: from, until: to }), limit: 100 });
+      out.ads = (d.data || []).map((x) => {
+        const msg = (x.actions || []).find((a) => a.action_type === 'onsite_conversion.messaging_conversation_started_7d');
+        return { name: x.ad_name, reach: +x.reach || 0, impressions: +x.impressions || 0, spend: +x.spend || 0, clicks: +x.clicks || 0, messages: msg ? +msg.value : 0 };
+      }).filter((x) => x.spend > 0).sort((a, b) => b.spend - a.spend);
+    } catch { /* sin desglose de anuncios */ }
+  }
+  return out;
+}

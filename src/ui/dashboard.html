@@ -1021,26 +1021,32 @@ async function openReport(slug, c) {
   const def = t.getDate() <= 7 ? opts[1].v : opts[0].v;
   m.innerHTML = `<div class="sheet one"><form class="fm" id="rForm">
     <h3>reporte mensual</h3>
-    <div class="eyebrow" style="line-height:1.6">Se arma con los datos del Hub: Instagram, sitio, Google y pauta. Se abre en otra pestaña lista para guardar como PDF.</div>
+    <div class="eyebrow" style="line-height:1.6">Presentación con los números del mes (Instagram, pauta, sitio y Google). Lo de abajo es opcional: si lo llenas, aparece en el reporte.</div>
     <label>Mes<select name="mes">${opts.map((o) => `<option value="${o.v}" ${o.v === def ? 'selected' : ''}>${o.l}${o.v === opts[0].v ? ' (en curso)' : ''}</option>`).join('')}</select></label>
-    <label>Lectura de Strove (opcional)<textarea name="note" placeholder="Qué funcionó, qué vamos a cambiar el próximo mes, recomendaciones…" maxlength="3000"></textarea></label>
+    <label>En una frase<input type="text" name="note" maxlength="200" placeholder="Ej. La pauta llevó la cuenta a mucha más gente, y esa gente ahora nos escribe."></label>
+    <label>Por dónde seguir con la pauta<input type="text" name="adsNote" maxlength="200" placeholder="Ej. Clases a ~$40 por mensaje: ahí va la pauta."></label>
+    <label>Metas del mes · una por renglón: meta | resultado | estado<textarea name="goals" style="min-height:90px" placeholder="20–25 conversaciones con pauta | 36 | Superada&#10;80+ seguidores nuevos | 51 | En camino"></textarea></label>
+    <label>Plan para el siguiente mes · una por renglón: título: descripción<textarea name="plan" style="min-height:90px" placeholder="Pauta en clases: $2,000 al mes en lo que trae mensajes a ~$40&#10;Responder en menos de 1 hora: respuestas rápidas con precios y horarios"></textarea></label>
+    <label>Frase de cierre<input type="text" name="closing" maxlength="60" placeholder="Gracias"></label>
     <div class="acts"><span class="sp"></span><button type="button" class="btn" id="rView">Solo ver</button><button type="submit" class="btn pri">Descargar PDF</button></div>
   </form></div>`;
   m.hidden = false;
-  const f = $('#rForm');
-  const load = async () => { try { f.note.value = (await api(`/api/report-note?client=${slug}&mes=${f.mes.value}`)).note; } catch { /* nada */ } };
+  const f = $('#rForm'); const keys = ['note', 'adsNote', 'goals', 'plan', 'closing'];
+  const load = async () => { try { const raw = (await api(`/api/report-note?client=${slug}&mes=${f.mes.value}`)).note || '';
+    let o = {}; try { o = raw.startsWith('{') ? JSON.parse(raw) : { note: raw }; } catch { o = { note: raw }; }
+    keys.forEach((k) => { f[k].value = o[k] || ''; }); } catch { /* nada */ } };
   load(); f.mes.onchange = load;
   m.onclick = (e) => { if (e.target === m) { m.hidden = true; m.innerHTML = ''; } };
   const go = async (print) => {
     const w = window.open('about:blank', '_blank');
-    try { await api(`/api/report-note?client=${slug}&mes=${f.mes.value}`, { method: 'PUT', body: JSON.stringify({ note: f.note.value }) }); } catch { /* seguimos */ }
+    const o = Object.fromEntries(keys.map((k) => [k, f[k].value.trim()]));
+    try { await api(`/api/report-note?client=${slug}&mes=${f.mes.value}`, { method: 'PUT', body: JSON.stringify({ note: JSON.stringify(o) }) }); } catch { /* seguimos */ }
     w.location = `/reporte/${slug}?mes=${f.mes.value}${print ? '&print=1' : ''}`;
     m.hidden = true; m.innerHTML = '';
   };
   $('#rView').onclick = () => go(false);
   f.onsubmit = (e) => { e.preventDefault(); go(true); };
 }
-
 // ---------------- router ----------------
 async function route() {
   const m = location.hash.match(/^#\/c\/([a-z0-9-]+)(?:\/(sitio|redes|cambios))?/);

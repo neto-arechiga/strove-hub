@@ -505,7 +505,7 @@ export default {
         const key = `${url.searchParams.get('kind') === 'intro' ? 'pvintro' : 'note'}:${c.slug}:${mes}`;
         if (request.method === 'PUT') {
           const { note = '' } = await request.json();
-          await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(key, String(note).slice(0, 3000)).run();
+          await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(key, String(note).slice(0, 8000)).run();
           return json({ ok: true });
         }
         const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first();
@@ -528,8 +528,9 @@ export default {
         if (!c) return html('<h1>Cliente no encontrado</h1>', 404);
         const t = new Date(); const def = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
         const mes = /^\d{4}-\d{2}$/.test(url.searchParams.get('mes') || '') ? url.searchParams.get('mes') : def;
-        const note = (await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(`note:${c.slug}:${mes}`).first())?.value || '';
-        return html(await renderReport(env, c, mes, { note }));
+        const raw = (await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(`note:${c.slug}:${mes}`).first())?.value || '';
+        let o = {}; try { o = raw.startsWith('{') ? JSON.parse(raw) : { note: raw }; } catch { o = { note: raw }; }
+        return html(await renderReport(env, c, mes, o));
       }
 
       if (path === '/api/sync' && request.method === 'POST') {
