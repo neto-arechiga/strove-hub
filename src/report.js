@@ -48,13 +48,23 @@ function lineChart(dates, vals, color) {
   const d = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
   const area = `${d}L${x(pts.length - 1)},${H - P}L${x(0)},${H - P}Z`;
   const ticks = [0, Math.floor((pts.length - 1) / 2), pts.length - 1].map((i) => `<text x="${x(i)}" y="${H + 12}" text-anchor="${i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'middle'}">${esc(+dates[i]?.slice(8, 10))}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H + 16}" class="chart"><path d="${area}" fill="${color}" opacity=".14"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>${ticks}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H + 16}" class="chart"><path d="${area}" fill="${color}" opacity=".07"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>${ticks}</svg>`;
 }
 
 const CHANNEL = { 'Organic Search': 'Google orgánico', 'Direct': 'Directo', 'Organic Social': 'Redes sociales', 'Paid Social': 'Pauta en redes', 'Referral': 'Otros sitios', 'Paid Search': 'Google Ads', 'Email': 'Correo', 'Unassigned': 'Sin clasificar', 'Organic Video': 'Video', 'Organic Maps': 'Google Maps', 'Cross-network': 'Campañas mixtas', 'AI Assistant': 'Asistentes de IA (ChatGPT, etc.)' };
 
 export async function renderReport(env, c, mes, opts = {}) {
   const r = monthRange(mes);
+  // Mes en curso: se compara contra los mismos días del mes anterior (no contra el mes completo)
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  r.partial = today <= r.to;
+  if (r.partial) {
+    const day = Math.max(1, +today.slice(8, 10) - 1); // hasta ayer (el día de hoy aún no termina)
+    r.to = `${mes}-${pad(day)}`;
+    r.prev[1] = `${r.prev[0].slice(0, 8)}${pad(Math.min(day, +r.prev[1].slice(8, 10)))}`;
+    r.days = day;
+  }
+  const vs = r.partial ? `los mismos días de ${r.prevLabel}` : r.prevLabel;
   const [cur, prev] = await Promise.all([sums(env, c.slug, [r.from, r.to]), sums(env, c.slug, r.prev)]);
   const [fNow, fPrev] = await Promise.all([followersAt(env, c.slug, r.to), followersAt(env, c.slug, r.prev[1])]);
   const { results: posts } = await env.DB.prepare(
@@ -85,16 +95,16 @@ export async function renderReport(env, c, mes, opts = {}) {
   // Lo más importante (automático)
   const bullets = [];
   const pct = (a, b) => (a != null && b ? Math.round(((a - b) / b) * 100) : null);
-  if (hasIG && fNow) bullets.push(`La cuenta cerró el mes con <b>${nf(fNow.value)} seguidores</b>${fPrev ? ` (${fNow.value - fPrev.value >= 0 ? '+' : ''}${nf(fNow.value - fPrev.value)} contra ${r.prevLabel})` : ''}.`);
-  if (hasIG && cur.reach) { const p = pct(cur.reach, prev.reach); bullets.push(`Instagram llegó a <b>${nf(cur.reach)} cuentas</b>${p != null ? `, ${p >= 0 ? `${p}% más` : `${Math.abs(p)}% menos`} que en ${r.prevLabel}` : ''}.`); }
+  if (hasIG && fNow) bullets.push(`La cuenta ${r.partial ? 'va en' : 'cerró el mes con'} <b>${nf(fNow.value)} seguidores</b>${fPrev ? ` (${fNow.value - fPrev.value >= 0 ? '+' : ''}${nf(fNow.value - fPrev.value)} contra ${vs})` : ''}.`);
+  if (hasIG && cur.reach) { const p = pct(cur.reach, prev.reach); bullets.push(`El alcance en Instagram sumó <b>${nf(cur.reach)}</b>${p != null ? `, ${p >= 0 ? `${p}% más` : `${Math.abs(p)}% menos`} que en ${vs}` : ''}.`); }
   if (top[0] && (top[0].views || top[0].reach)) bullets.push(`El post con mejor resultado fue <b>“${esc(firstLine(top[0].caption))}”</b> con ${nf(top[0].views ?? top[0].reach)} ${top[0].views != null ? 'reproducciones' : 'cuentas alcanzadas'}.`);
-  if (hasGA) { const p = pct(cur.sessions, prev.sessions); bullets.push(`El sitio recibió <b>${nf(cur.sessions)} visitas</b>${p != null ? ` (${p >= 0 ? '+' : ''}${p}% contra ${r.prevLabel})` : ''}${cur.leads ? ` y generó <b>${nf(cur.leads)} contactos</b>` : ''}.`); }
+  if (hasGA) { const p = pct(cur.sessions, prev.sessions); bullets.push(`El sitio recibió <b>${nf(cur.sessions)} visitas</b>${p != null ? ` (${p >= 0 ? '+' : ''}${p}% contra ${vs})` : ''}${cur.leads ? ` y generó <b>${nf(cur.leads)} contactos</b>` : ''}.`); }
   if (hasGSC) bullets.push(`En Google apareció <b>${nf(cur.impressions)} veces</b> y recibió <b>${nf(cur.clicks)} clics</b>.`);
   if (hasAds) bullets.push(`Se invirtieron <b>${money(cur.ad_spend)}</b> en pauta${cur.ad_messages ? `, que trajeron <b>${nf(cur.ad_messages)} conversaciones</b>` : ''}.`);
 
   const tile = (label, value, d, hint = '') => `<div class="tile"><div class="tl">${label}</div><div class="tv">${value}</div>${d || ''}${hint ? `<div class="th">${hint}</div>` : ''}</div>`;
   const pageHead = (eyebrow, title) => `<div class="ph"><div class="eb">${eyebrow}</div><h2>${title}</h2></div>`;
-  const foot = (n) => `<div class="foot"><span>${esc(c.name)} · ${r.label} ${r.y}</span><span>Strove · ${n}</span></div>`;
+  const foot = (n) => `<div class="foot"><span>${esc(c.name)} · ${r.label} ${r.y}${r.partial ? ` · al ${r.days}` : ''}</span><span>Strove · ${n}</span></div>`;
   let pn = 1;
   const pages = [];
 
@@ -104,7 +114,7 @@ export async function renderReport(env, c, mes, opts = {}) {
     <div class="cv-mid">
       <div class="cv-eb">Reporte mensual</div>
       <h1>${r.label} <i style="color:${theme.accent}">${r.y}</i></h1>
-      <p>Resultados de ${[hasGA || hasGSC ? 'sitio web y Google' : null, hasIG ? 'Instagram' : null, hasAds ? 'pauta' : null].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' y $1')} de ${esc(c.name)}, comparados contra ${r.prevLabel}.</p>
+      <p>Resultados de ${[hasGA || hasGSC ? 'sitio web y Google' : null, hasIG ? 'Instagram' : null, hasAds ? 'pauta' : null].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' y $1')} de ${esc(c.name)}${r.partial ? `, del 1 al ${r.days} de ${MESES[r.m - 1]} (mes en curso)` : ''}, comparados contra ${vs}.</p>
     </div>
     <div class="cv-foot"><span>Preparado por</span><img src="/strove-logo.png" alt="Strove"></div>
   </section>`);
@@ -112,7 +122,7 @@ export async function renderReport(env, c, mes, opts = {}) {
   // 2 · Resumen
   const sumTiles = [
     hasIG && fNow ? tile('Seguidores', nf(fNow.value), delta(fNow.value, fPrev?.value)) : null,
-    hasIG && cur.reach != null ? tile('Cuentas alcanzadas', nf(cur.reach), delta(cur.reach, prev.reach)) : null,
+    hasIG && cur.reach != null ? tile('Alcance', nf(cur.reach), delta(cur.reach, prev.reach)) : null,
     hasIG && posts.length ? tile('Reproducciones de posts', nf(ig.views), delta(ig.views, ig.pviews)) : null,
     hasGA ? tile('Visitas al sitio', nf(cur.sessions), delta(cur.sessions, prev.sessions)) : null,
     hasGA && c.leadEvent ? tile('Contactos desde el sitio', nf(cur.leads || 0), delta(cur.leads, prev.leads)) : null,
@@ -172,9 +182,9 @@ export async function renderReport(env, c, mes, opts = {}) {
     pages.push(`<section class="page">${pageHead('Pauta en Meta', 'Lo que se invirtió y lo que regresó')}
       <div class="tiles t2">
         ${tile('Inversión', money(cur.ad_spend), delta(cur.ad_spend, prev.ad_spend, { invert: true }))}
-        ${tile('Clics', nf(cur.ad_clicks), delta(cur.ad_clicks, prev.ad_clicks))}
+        ${cur.ad_clicks != null ? tile('Clics', nf(cur.ad_clicks), delta(cur.ad_clicks, prev.ad_clicks)) : ''}
         ${tile('Conversaciones', nf(cur.ad_messages || 0), delta(cur.ad_messages, prev.ad_messages), 'Mensajes que iniciaron por un anuncio')}
-        ${tile('Costo por clic', cur.ad_clicks ? '$' + nf(cur.ad_spend / cur.ad_clicks, 2) : '—', '', 'Pesos mexicanos')}
+        ${cur.ad_clicks ? tile('Costo por clic', '$' + nf(cur.ad_spend / cur.ad_clicks, 2), '', 'Pesos mexicanos') : ''}
       </div>
       ${cur.ad_messages ? `<div class="block"><div class="eb">Costo por conversación</div><div class="big" style="color:${strong}">$${nf(cur.ad_spend / cur.ad_messages, 0)} <span>MXN</span></div></div>` : ''}
       ${foot(++pn)}</section>`);
