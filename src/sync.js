@@ -146,8 +146,10 @@ export async function syncClient(env, client, days = 10) {
       const sched = await fetchScheduledFacebook(env, meta.pageId, meta.pageToken);
       await saveScheduled(env, client.slug, 'facebook', sched);
     } catch (e) { await log(env, client.slug, 'programados', false, e.message); }
-    const { rows, posts } = await fetchInstagram(env, c, days);
+    const { rows, posts, profile } = await fetchInstagram(env, c, days);
     await saveMetrics(env, client.slug, 'ig', rows);
+    // Perfil (para la vista previa del feed): seguidores, seguidos, publicaciones y bio
+    await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind('igprofile:' + client.slug, JSON.stringify(profile)).run();
     await savePosts(env, client.slug, posts);
     await matchPlan(env, client);
   });

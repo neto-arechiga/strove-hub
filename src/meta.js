@@ -24,7 +24,7 @@ export async function fetchInstagram(env, client, days) {
   const rows = [];
   if (!client.igUserId) throw new Error('Sin cuenta de Instagram');
   // Seguidores: Meta solo da el número de hoy; el historial lo vamos guardando nosotros cada noche
-  const profile = await graph(env, client.igUserId, { fields: 'followers_count,media_count,username' });
+  const profile = await graph(env, client.igUserId, { fields: 'followers_count,follows_count,media_count,username,name,biography' });
   rows.push({ date: todayLocal(), metric: 'followers', value: profile.followers_count || 0 });
 
   // Alcance diario de la cuenta (máx. 30 días por consulta)
@@ -74,7 +74,7 @@ export async function fetchInstagram(env, client, days) {
     }
     posts.push(p);
   }
-  return { rows, posts, username: profile.username };
+  return { rows, posts, username: profile.username, profile: { username: profile.username, name: profile.name || '', biography: profile.biography || '', followers: profile.followers_count ?? null, follows: profile.follows_count ?? null, media: profile.media_count ?? null } };
 }
 
 export async function resolveAdAccount(env, client) {

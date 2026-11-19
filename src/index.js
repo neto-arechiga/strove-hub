@@ -4,6 +4,7 @@ import { accessUser, formToken, checkFormToken } from './auth.js';
 import { syncAll, syncClient, uptimeAll, refreshRequests } from './sync.js';
 import { createIssue } from './github.js';
 import { renderReport } from './report.js';
+import { renderPreview } from './preview.js';
 import dashboardHtml from './ui/dashboard.html';
 import formHtml from './ui/form.html';
 import approveHtml from './ui/aprobar.html';
@@ -16,6 +17,8 @@ async function ensureSchema(env) {
   const stmts = schemaSql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n')
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
+  // Columnas nuevas en tablas existentes (falla sin problema si ya existen)
+  for (const q of ['ALTER TABLE content_plan ADD COLUMN series TEXT']) { try { await env.DB.prepare(q).run(); } catch { /* ya existe */ } }
   schemaReady = true;
 }
 
@@ -210,7 +213,7 @@ async function clientDetail(env, c) {
 const PLAN_STATUSES = ['borrador', 'por_aprobar', 'cambios', 'aprobado', 'programado', 'publicado'];
 const PLAN_FORMATS = ['post', 'carrusel', 'reel', 'historia'];
 const PLAN_NETWORKS = ['instagram', 'facebook', 'ambas'];
-const PLAN_COLS = 'id, client, date, time, network, format, title, copy, status, client_comment, reviewed_by, reviewed_at, post_id, created_by, created_at, updated_at';
+const PLAN_COLS = 'id, client, date, time, network, format, title, series, copy, status, client_comment, reviewed_by, reviewed_at, post_id, created_by, created_at, updated_at';
 
 function cleanPlan(body, partial) {
   const out = {};
@@ -220,7 +223,7 @@ function cleanPlan(body, partial) {
   if (body.network !== undefined) { if (!PLAN_NETWORKS.includes(body.network)) throw new Error('Red no válida'); out.network = body.network; }
   if (body.format !== undefined) { if (!PLAN_FORMATS.includes(body.format)) throw new Error('Formato no válido'); out.format = body.format; }
   if (body.status !== undefined) { if (!PLAN_STATUSES.includes(body.status)) throw new Error('Estado no válido'); out.status = body.status; }
-  str('title', 120); str('copy', 2200);
+  str('title', 120); str('copy', 2200); str('series', 80);
   if (body.image !== undefined) {
     if (body.image && !/^data:image\/(jpeg|png|webp);base64,/.test(body.image)) throw new Error('Imagen no válida');
     if (body.image && body.image.length > 1_400_000) throw new Error('La imagen es muy pesada');
@@ -499,7 +502,7 @@ export default {
       if (path === '/api/report-note') {
         const c = getClient(url.searchParams.get('client')); const mes = url.searchParams.get('mes') || '';
         if (!c || !/^\d{4}-\d{2}$/.test(mes)) return json({ error: 'Datos no válidos' }, 400);
-        const key = `note:${c.slug}:${mes}`;
+        const key = `${url.searchParams.get('kind') === 'intro' ? 'pvintro' : 'note'}:${c.slug}:${mes}`;
         if (request.method === 'PUT') {
           const { note = '' } = await request.json();
           await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(key, String(note).slice(0, 3000)).run();
@@ -507,6 +510,16 @@ export default {
         }
         const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first();
         return json({ note: row?.value || '' });
+      }
+
+      const vp = path.match(/^\/vista-previa\/([a-z0-9-]+)$/);
+      if (vp && request.method === 'GET') {
+        const c = getClient(vp[1]);
+        if (!c) return html('<h1>Cliente no encontrado</h1>', 404);
+        const t = new Date(); const def = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
+        const mes = /^\d{4}-\d{2}$/.test(url.searchParams.get('mes') || '') ? url.searchParams.get('mes') : def;
+        const intro = (await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(`pvintro:${c.slug}:${mes}`).first())?.value || '';
+        return html(await renderPreview(env, c, mes, { intro }));
       }
 
       const rp = path.match(/^\/reporte\/([a-z0-9-]+)$/);

@@ -597,7 +597,7 @@ function renderSocial(d, slug) {
       <div class="panel-h">
         <h3>calendario de contenido</h3>
         <div class="cal-h"><button class="nav" id="calPrev" aria-label="Mes anterior">‹</button><span class="mon" id="calMon"></span><button class="nav" id="calNext" aria-label="Mes siguiente">›</button>
-        <button class="btn pur" id="gridUp">Subir parrilla</button><input type="file" id="gridFile" accept="application/pdf,.pdf,application/json,.json" hidden>
+        <button class="btn" id="pvBtn">Vista previa del mes</button><button class="btn pur" id="gridUp">Subir parrilla</button><input type="file" id="gridFile" accept="application/pdf,.pdf,application/json,.json" hidden>
         <button class="btn pri" id="calNew">+ Nuevo post</button></div>
       </div>
       <div class="legend">${Object.entries(PSTATUS).map(([k2, v]) => `<span><i class="sc-${k2}" style="background:var(--sc)"></i>${v}</span>`).join('')}<span><i style="background:#4F8EF7"></i>Programado en Facebook</span><span><i style="background:#5A5854"></i>Ya en Instagram</span></div>
@@ -624,6 +624,7 @@ function renderSocial(d, slug) {
   $('#calNext').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); drawCal(d, slug); });
   $('#calNew').addEventListener('click', () => openEditor(slug, { date: ymd(new Date()), status: 'borrador', network: 'instagram', format: 'post' }, d));
   $('#gridUp').addEventListener('click', () => $('#gridFile').click());
+  $('#pvBtn').addEventListener('click', () => openPreviewDoc(slug));
   $('#gridFile').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importGrid(f, slug, d); });
   drawCal(d, slug);
   drawProg(d, slug);
@@ -679,7 +680,7 @@ function openEditor(slug, it, d) {
       ${it.client_comment ? `<div class="cc ${it.status === 'aprobado' ? 'ok' : ''}"><b>${esc(it.reviewed_by || 'Cliente')}:</b> ${esc(it.client_comment)}</div>` : it.status === 'aprobado' && it.reviewed_by ? `<div class="cc ok">Aprobado por <b>${esc(it.reviewed_by)}</b></div>` : ''}
       <div class="row"><label>Fecha<input type="date" name="date" value="${esc(it.date)}" required></label><label>Hora<input type="time" name="time" value="${esc(it.time || '')}"></label></div>
       <div class="row"><label>Red<select name="network">${opt(PNET, it.network)}</select></label><label>Formato<select name="format">${opt(PFORMAT, it.format)}</select></label></div>
-      <label>Título interno<input type="text" name="title" value="${esc(it.title || '')}" maxlength="120" placeholder="Ej. Reel Japón abril"></label>
+      <div class="row"><label>Título<input type="text" name="title" value="${esc(it.title || '')}" maxlength="120" placeholder="Ej. 5 decisiones antes de reservar"></label><label>Serie (opcional)<input type="text" name="series" value="${esc(it.series || '')}" maxlength="80" placeholder="Ej. NAVIDAD EN EUROPA · 01/03"></label></div>
       <label>Caption <span class="cnt" id="edCnt"></span><textarea name="copy" maxlength="2200" placeholder="Texto del post con sus hashtags">${esc(it.copy || '')}</textarea></label>
       <div class="acts"><button type="button" class="btn" id="edCopy">Copiar caption</button></div>
       <label>Estado<select name="status">${opt(PSTATUS, it.status)}</select></label>
@@ -701,7 +702,7 @@ function openEditor(slug, it, d) {
   $('#edFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return;
     try { image = await compress(f); $('#edImg').querySelector('img, .eyebrow').outerHTML = `<img src="${image}" alt="">`; } catch (err) { toast(err.message); } };
   const save = async (extra = {}) => {
-    const f = $('#edForm'); const body = { date: f.date.value, time: f.time.value, network: f.network.value, format: f.format.value, title: f.title.value, copy: f.copy.value, status: f.status.value, ...extra };
+    const f = $('#edForm'); const body = { date: f.date.value, time: f.time.value, network: f.network.value, format: f.format.value, title: f.title.value, series: f.series.value, copy: f.copy.value, status: f.status.value, ...extra };
     if (image !== undefined) body.image = image;
     try {
       if (isNew) await api('/api/plan', { method: 'POST', body: JSON.stringify({ client: slug, ...body }) });
@@ -850,6 +851,16 @@ function pdfLines(items, minX = -1, maxX = 1e9) {
     return { y: r.y, x: r.its[0].transform[4], right: end, h: Math.max(...r.its.map((i) => i.height)), text: s.replace(/\s+/g, ' ').trim() }; })
     .filter((l) => l.text);
 }
+// Encabezados con letras espaciadas ("M I É R C O L E S"): junta letras y deja solo los espacios entre palabras
+function headerText(items, y) {
+  const its = items.filter((i) => Math.abs(i.transform[5] - y) < 2 && i.str.trim()).sort((a, b) => a.transform[4] - b.transform[4]);
+  if (!its.length) return '';
+  const gaps = its.slice(1).map((i, k) => i.transform[4] - (its[k].transform[4] + its[k].width));
+  const sorted = [...gaps].sort((a, b) => a - b); const med = sorted[Math.floor(sorted.length / 2)] || 0;
+  let s = its[0].str.replace(/\s/g, '');
+  its.slice(1).forEach((i, k) => { s += (gaps[k] > med + 2.2 ? ' ' : '') + i.str.replace(/\s/g, ''); });
+  return s.replace(/\s*·\s*/g, ' · ');
+}
 function fixParens(line) { // algunos PDFs pierden el "(": "Alsacia 4 a 5 días)" → "Alsacia (4 a 5 días)"
   let t = line, guard = 0;
   while ((t.match(/\)/g) || []).length > (t.match(/\(/g) || []).length && guard++ < 5) {
@@ -892,7 +903,7 @@ async function parseGridPdf(file, progress) {
     if (!capL) continue;
     const hdr = L.find((l) => /(\d{1,2})DE(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)/.test(normU(l.text)));
     const hm = hdr && normU(hdr.text).match(/(\d{1,2})DE(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)/);
-    let date = null;
+    let date = null; const series = hdr ? headerText(items, hdr.y).split(' · ').slice(1).join(' · ') : '';
     if (hm) { const mi = MONTHS_UP.indexOf(hm[2]); const y = coverMonth === 11 && mi === 0 ? year + 1 : year; date = `${y}-${String(mi + 1).padStart(2, '0')}-${hm[1].padStart(2, '0')}`; }
     // Título: los renglones con letra más grande arriba del caption
     const above = L.filter((l) => l.y > capL.y + 2 && l !== hdr && !normU(l.text).includes('···'));
@@ -919,14 +930,14 @@ async function parseGridPdf(file, progress) {
     const format = all.includes('CARRUSEL') ? 'carrusel' : all.includes('REEL') ? 'reel' : 'post';
     progress(`Sacando la imagen de la página ${n}…`);
     let image = null; try { image = await bigImage(pdfjs, page); } catch { /* sin imagen */ }
-    posts.push({ date, title: title.slice(0, 120), copy: cap.slice(0, 2200), format, slides: sm ? +sm[1] : null, image,
+    posts.push({ date, title: title.slice(0, 120), series: series.slice(0, 80), copy: cap.slice(0, 2200), format, slides: sm ? +sm[1] : null, image,
       warn: [!date && 'No encontré la fecha', fixed && 'Revisa los paréntesis'].filter(Boolean) });
   }
   return posts;
 }
 function parseGridJson(text) { // { posts: [{ fecha|date, hora|time, titulo|title, formato|format, caption|copy }] }
   const j = JSON.parse(text); const arr = Array.isArray(j) ? j : j.posts || [];
-  return arr.map((p) => ({ date: p.fecha || p.date, time: p.hora || p.time || '', title: (p.titulo || p.title || '').slice(0, 120), copy: (p.caption || p.copy || '').slice(0, 2200),
+  return arr.map((p) => ({ date: p.fecha || p.date, time: p.hora || p.time || '', title: (p.titulo || p.title || '').slice(0, 120), series: (p.serie || p.series || '').slice(0, 80), copy: (p.caption || p.copy || '').slice(0, 2200),
     format: ['post', 'carrusel', 'reel', 'historia'].includes(p.formato || p.format) ? (p.formato || p.format) : 'post', image: null, warn: [] }));
 }
 async function importGrid(file, slug, d) {
@@ -947,7 +958,7 @@ async function importGrid(file, slug, d) {
       <label class="ck"><input type="checkbox" name="on${k}" checked></label>
       <div class="gimg">${p.image ? `<img src="${p.image}" alt="">` : '<span class="eyebrow">Sin imagen</span>'}</div>
       <div class="gfm"><div class="row"><label>Fecha<input type="date" name="d${k}" value="${esc(p.date || '')}" required></label><label>Formato<select name="f${k}">${Object.entries(PFORMAT).map(([k2, l]) => `<option value="${k2}" ${k2 === p.format ? 'selected' : ''}>${l}${k2 === 'carrusel' && p.slides ? ` (${p.slides})` : ''}</option>`).join('')}</select></label></div>
-        <label>Título<input type="text" name="t${k}" value="${esc(p.title)}" maxlength="120"></label>
+        <div class="row"><label>Título<input type="text" name="t${k}" value="${esc(p.title)}" maxlength="120"></label><label>Serie (opcional)<input type="text" name="s${k}" value="${esc(p.series || '')}" maxlength="80" placeholder="Ej. NAVIDAD EN EUROPA · 01/03"></label></div>
         <label>Caption ${p.warn.length ? `<span class="bad">· ${esc(p.warn.join(' · '))}</span>` : ''}<textarea name="c${k}" maxlength="2200">${esc(p.copy)}</textarea></label></div>
     </div>`).join('')}</div>
     <div class="acts"><span class="sp"></span><button type="button" class="btn" id="gCancel">Cancelar</button><button type="submit" class="btn pri" id="gSave">Guardar en el calendario</button></div>
@@ -956,7 +967,7 @@ async function importGrid(file, slug, d) {
   $('#gCancel').onclick = close;
   $('#gForm').onsubmit = async (e) => {
     e.preventDefault(); const f = e.target; const btn = $('#gSave'); btn.disabled = true;
-    const chosen = posts.map((p, k) => ({ ...p, on: f['on' + k].checked, date: f['d' + k].value, format: f['f' + k].value, title: f['t' + k].value, copy: f['c' + k].value })).filter((p) => p.on && p.date);
+    const chosen = posts.map((p, k) => ({ ...p, on: f['on' + k].checked, date: f['d' + k].value, format: f['f' + k].value, title: f['t' + k].value, series: f['s' + k].value, copy: f['c' + k].value })).filter((p) => p.on && p.date);
     if (!chosen.length) { toast('No hay posts seleccionados'); btn.disabled = false; return; }
     const dates = chosen.map((p) => p.date).sort();
     try {
@@ -964,7 +975,7 @@ async function importGrid(file, slug, d) {
       let k = 0;
       for (const p of chosen) {
         btn.textContent = `Guardando ${++k} de ${chosen.length}…`;
-        const body = { date: p.date, time: p.time || f.time.value || '', network: 'instagram', format: p.format, title: p.title, copy: p.copy, status: f.status.value, ...(p.image ? { image: p.image } : {}) };
+        const body = { date: p.date, time: p.time || f.time.value || '', network: 'instagram', format: p.format, title: p.title, series: p.series || '', copy: p.copy, status: f.status.value, ...(p.image ? { image: p.image } : {}) };
         const ex = items.find((i) => i.date === p.date && (i.title || '').trim().toLowerCase() === p.title.trim().toLowerCase());
         if (ex) await api('/api/plan/' + ex.id, { method: 'PATCH', body: JSON.stringify(body) });
         else await api('/api/plan', { method: 'POST', body: JSON.stringify({ client: slug, ...body }) });
@@ -973,6 +984,34 @@ async function importGrid(file, slug, d) {
       calMonth = new Date(+dates[0].slice(0, 4), +dates[0].slice(5, 7) - 1, 1); drawCal(d, slug); drawProg(d, slug);
     } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Guardar en el calendario'; }
   };
+}
+
+
+// ---------------- vista previa del mes (para el cliente) ----------------
+async function openPreviewDoc(slug) {
+  const m = $('#modal'); const t = new Date();
+  const opts = Array.from({ length: 4 }, (_, k) => { const x = new Date(t.getFullYear(), t.getMonth() - 1 + k, 1); return { v: `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`, l: `${MESES[x.getMonth()]} ${x.getFullYear()}` }; });
+  const shown = calMonth ? `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}` : opts[1].v;
+  m.innerHTML = `<div class="sheet one"><form class="fm" id="pvForm">
+    <h3>vista previa del mes</h3>
+    <div class="eyebrow" style="line-height:1.6">El documento para presentarle al cliente los posts que vienen: portada, cómo se verá el feed y cada post con su caption y láminas. Sale de lo que hay en el calendario.</div>
+    <label>Mes<select name="mes">${opts.map((o) => `<option value="${o.v}" ${o.v === shown ? 'selected' : ''}>${o.l}</option>`).join('')}</select></label>
+    <label>Texto de la portada<textarea name="intro" maxlength="600" placeholder="Ej. Vista previa de los posts de Instagram de @viajesaot. Este mes el contenido está pensado para que la gente lo guarde, lo comparta y siga la cuenta."></textarea></label>
+    <div class="acts"><span class="sp"></span><button type="button" class="btn" id="pvView">Solo ver</button><button type="submit" class="btn pri">Descargar PDF</button></div>
+  </form></div>`;
+  m.hidden = false;
+  const f = $('#pvForm');
+  const load = async () => { try { f.intro.value = (await api(`/api/report-note?kind=intro&client=${slug}&mes=${f.mes.value}`)).note; } catch { /* nada */ } };
+  load(); f.mes.onchange = load;
+  m.onclick = (e) => { if (e.target === m) { m.hidden = true; m.innerHTML = ''; } };
+  const go = async (print) => {
+    const w = window.open('about:blank', '_blank');
+    try { await api(`/api/report-note?kind=intro&client=${slug}&mes=${f.mes.value}`, { method: 'PUT', body: JSON.stringify({ note: f.intro.value }) }); } catch { /* seguimos */ }
+    w.location = `/vista-previa/${slug}?mes=${f.mes.value}${print ? '&print=1' : ''}`;
+    m.hidden = true; m.innerHTML = '';
+  };
+  $('#pvView').onclick = () => go(false);
+  f.onsubmit = (e) => { e.preventDefault(); go(true); };
 }
 
 // ---------------- reporte mensual ----------------

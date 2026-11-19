@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS content_plan (
   network       TEXT NOT NULL DEFAULT 'instagram',  -- instagram, facebook, ambas
   format        TEXT NOT NULL DEFAULT 'post',       -- post, carrusel, reel, historia
   title         TEXT,
+  series        TEXT,            -- serie del post (p. ej. "NAVIDAD EN EUROPA · 01/03")
   copy          TEXT,
   image         TEXT,            -- data URL (se comprime en el navegador antes de subir)
   status        TEXT NOT NULL DEFAULT 'borrador',   -- borrador, por_aprobar, cambios, aprobado, programado, publicado
