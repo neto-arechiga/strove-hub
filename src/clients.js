@@ -43,7 +43,7 @@ export const CLIENTS = [
     url: 'https://mmestudiointerior.com',
     platform: 'framer',             // sitio hecho en Framer: sin repo de GitHub
     repo: '',
-    ga4PropertyId: '',              // pendiente: el admin de su Analytics debe agregar al robot como Lector
+    ga4PropertyId: '529187765',     // GA4 de MM (acceso vía hola@strove.mx)
     gscSite: 'sc-domain:mmestudiointerior.com', // pendiente: el propietario debe agregar al robot
     leadEvent: '',
     clarityId: 'vyaifik3h2',
