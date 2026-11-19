@@ -74,7 +74,7 @@ export async function renderReport(env, c, mes, opts = {}) {
   const channels = br.filter((b) => b.kind === 'channels').slice(0, 5);
 
   // ---- tema de la marca ----
-  const T = { dark: c.report?.bg || '#1F2B26', hi: c.report?.accent || '#D8EC4C', warm: c.report?.warm || c.color || '#A64B32', muted: c.report?.muted || '#AFAC80', cream: c.report?.cream || '#EDE6D6', card: c.report?.card || '#E3DCC6' };
+  const T = { dark: c.report?.bg || '#1F2B26', hi: c.report?.accent || c.color || '#BDBAB2', warm: c.report?.warm || c.report?.bg || c.color || '#1F2B26', muted: c.report?.muted || c.report?.accent || '#BDBAB2', cream: c.report?.cream || '#F1EFEA', card: c.report?.card || '#E6E3DC' };
   const label = `${esc(c.name)} · Reporte ${r.mes} ${r.y}`.toUpperCase();
   const pill = (txt, kind = 'dk') => `<span class="pill ${kind}">${txt}</span>`;
   const dPill = (a, b, o = {}) => { const p = pctOf(a, b); if (p == null) return ''; const t = `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}%`; return pill(o.long ? `${t} ${vsTxt}` : t, o.kind || 'dk'); };
