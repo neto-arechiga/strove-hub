@@ -102,167 +102,267 @@ export async function renderReport(env, c, mes, opts = {}) {
   if (hasGSC) bullets.push(`En Google apareció <b>${nf(cur.impressions)} veces</b> y recibió <b>${nf(cur.clicks)} clics</b>.`);
   if (hasAds) bullets.push(`Se invirtieron <b>${money(cur.ad_spend)}</b> en pauta${cur.ad_messages ? `, que trajeron <b>${nf(cur.ad_messages)} conversaciones</b>` : ''}.`);
 
-  const tile = (label, value, d, hint = '') => `<div class="tile"><div class="tl">${label}</div><div class="tv">${value}</div>${d || ''}${hint ? `<div class="th">${hint}</div>` : ''}</div>`;
-  const pageHead = (eyebrow, title) => `<div class="ph"><div class="eb">${eyebrow}</div><h2>${title}</h2></div>`;
-  const foot = (n) => `<div class="foot"><span>${esc(c.name)} · ${r.label} ${r.y}${r.partial ? ` · al ${r.days}` : ''}</span><span>Strove · ${n}</span></div>`;
-  let pn = 1;
+  // ---------- presentación editorial ----------
+  const A = theme.accent, INK = '#151515';
+  const mesTxt = MESES[r.m - 1];
+  const dTxt = (cur_, prev_, o = {}) => { // variación en texto corrido, estilo revista
+    if (cur_ == null || prev_ == null || (!o.pts && !prev_)) return '';
+    const diff = o.pts ? cur_ - prev_ : ((cur_ - prev_) / Math.abs(prev_)) * 100;
+    if (Math.abs(diff) < 0.5) return `<span class="dv">igual que ${esc(vs)}</span>`;
+    const good = o.invert ? diff < 0 : diff > 0;
+    const t = o.pts ? `${diff > 0 ? '+' : '−'}${nf(Math.abs(diff), 1)} lugares` : `${diff > 0 ? '+' : '−'}${nf(Math.abs(diff))}%`;
+    return `<span class="dv ${good ? 'g' : 'b'}">${t} <i>vs. ${esc(vs)}</i></span>`;
+  };
+  const ledger = (rows) => `<div class="ledger">${rows.filter(Boolean).map(([l, v, d, h]) => `<div class="lr"><div class="ll">${l}${h ? `<small>${h}</small>` : ''}</div><div class="lv">${v}${d || ''}</div></div>`).join('')}</div>`;
+  const folio = (n, sec) => `<div class="folio"><span>${esc(c.name)} — ${esc(cap(mesTxt))} ${r.y}${r.partial ? ` (al ${r.days})` : ''}</span><span>${sec ? esc(sec) + ' · ' : ''}${String(n).padStart(2, '0')}</span></div>`;
+  const chap = (num, name) => `<div class="chap"><span class="cn">${num}</span><span class="cl"></span><span class="ct">${name}</span></div>`;
+  const img = (p) => (p?.thumb ? `background-image:url('${esc(p.thumb)}')` : '');
+  let pn = 1, ch = 0;
   const pages = [];
+  const hero = top[0] || posts[posts.length - 1];
+  const scope = [hasGA || hasGSC ? 'sitio web y Google' : null, hasIG ? 'Instagram' : null, hasAds ? 'pauta' : null].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' y $1');
 
-  // 1 · Portada
+  // 1 · Portada: foto del mejor post a sangre + bloque de color de la marca
   pages.push(`<section class="page cover" style="background:${theme.bg}">
-    <img class="clogo" src="/logo/${esc(c.slug)}" alt="${esc(c.name)}">
+    ${hero?.thumb ? `<div class="cv-photo" style="${img(hero)}"></div><div class="cv-fade" style="background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 30%,${theme.bg} 100%)"></div>` : ''}
+    <div class="cv-top"><img class="clogo" src="/logo/${esc(c.slug)}" alt="${esc(c.name)}"><span class="cv-issue">Reporte mensual<br>N.º ${pad(r.m)} · ${r.y}</span></div>
     <div class="cv-mid">
-      <div class="cv-eb">Reporte mensual</div>
-      <h1>${r.label} <i style="color:${theme.accent}">${r.y}</i></h1>
-      <p>Resultados de ${[hasGA || hasGSC ? 'sitio web y Google' : null, hasIG ? 'Instagram' : null, hasAds ? 'pauta' : null].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' y $1')} de ${esc(c.name)}${r.partial ? `, del 1 al ${r.days} de ${MESES[r.m - 1]} (mes en curso)` : ''}, comparados contra ${vs}.</p>
+      <h1>${esc(cap(mesTxt))}<br><i style="color:${A}">${r.y}</i></h1>
+      <div class="cv-rule" style="background:${A}"></div>
+      <p>Resultados de ${scope} de ${esc(c.name)}${r.partial ? `, del 1 al ${r.days} de ${mesTxt}` : ''}.</p>
     </div>
     <div class="cv-foot"><span>Preparado por</span><img src="/strove-logo.png" alt="Strove"></div>
   </section>`);
 
-  // 2 · Resumen
-  const sumTiles = [
-    hasIG && fNow ? tile('Seguidores', nf(fNow.value), delta(fNow.value, fPrev?.value)) : null,
-    hasIG && cur.reach != null ? tile('Alcance', nf(cur.reach), delta(cur.reach, prev.reach)) : null,
-    hasIG && posts.length ? tile('Reproducciones de posts', nf(ig.views), delta(ig.views, ig.pviews)) : null,
-    hasGA ? tile('Visitas al sitio', nf(cur.sessions), delta(cur.sessions, prev.sessions)) : null,
-    hasGA && c.leadEvent ? tile('Contactos desde el sitio', nf(cur.leads || 0), delta(cur.leads, prev.leads)) : null,
-    hasGSC ? tile('Clics desde Google', nf(cur.clicks), delta(cur.clicks, prev.clicks)) : null,
-    hasAds ? tile('Inversión en pauta', money(cur.ad_spend), delta(cur.ad_spend, prev.ad_spend, { invert: true })) : null,
+  // 2 · Editorial: la frase del mes + cifras + lo más importante + lectura de Strove
+  const lead = hasIG && cur.reach ? `Este mes, el contenido de ${esc(c.name)} sumó <em style="color:${strong}">${nf(cur.reach)}</em> de alcance en Instagram.`
+    : hasGA ? `Este mes, <em style="color:${strong}">${nf(cur.sessions)}</em> visitas llegaron al sitio de ${esc(c.name)}.`
+    : hasGSC ? `Este mes, ${esc(c.name)} apareció <em style="color:${strong}">${nf(cur.impressions)}</em> veces en Google.` : `El mes de ${esc(c.name)} en números.`;
+  const sumRows = [
+    hasIG && fNow ? ['Seguidores', nf(fNow.value), dTxt(fNow.value, fPrev?.value)] : null,
+    hasIG && cur.reach != null ? ['Alcance', nf(cur.reach), dTxt(cur.reach, prev.reach), 'Suma del alcance diario'] : null,
+    hasIG && posts.length ? ['Reproducciones', nf(ig.views), dTxt(ig.views, ig.pviews), `De los ${posts.length} posts del mes`] : null,
+    hasGA ? ['Visitas al sitio', nf(cur.sessions), dTxt(cur.sessions, prev.sessions)] : null,
+    hasGA && c.leadEvent ? ['Contactos desde el sitio', nf(cur.leads || 0), dTxt(cur.leads, prev.leads)] : null,
+    hasGSC ? ['Clics desde Google', nf(cur.clicks), dTxt(cur.clicks, prev.clicks)] : null,
+    hasAds ? ['Inversión en pauta', money(cur.ad_spend), dTxt(cur.ad_spend, prev.ad_spend, { invert: true })] : null,
   ].filter(Boolean).slice(0, 6);
-  pages.push(`<section class="page">${pageHead('Resumen', 'El mes en números')}
-    <div class="tiles t${sumTiles.length > 4 ? 3 : 2}">${sumTiles.join('')}</div>
-    ${bullets.length ? `<div class="block"><div class="eb">Lo más importante</div><ul class="bul">${bullets.map((b) => `<li>${b}</li>`).join('')}</ul></div>` : ''}
-    ${opts.note ? `<div class="block note" style="border-color:${strong}"><div class="eb">Lectura de Strove</div><p>${esc(opts.note).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>')}</p></div>` : ''}
-    ${foot(++pn)}</section>`);
+  pages.push(`<section class="page">
+    <div class="kicker">Editorial</div>
+    <h2 class="lead">${lead}</h2>
+    <div class="cols">
+      <div><div class="sh">En cifras</div>${ledger(sumRows)}</div>
+      <div><div class="sh">Lo más importante</div><ol class="hl">${bullets.map((b, i) => `<li><span class="n" style="color:${strong}">${pad(i + 1)}</span><span>${b}</span></li>`).join('')}</ol></div>
+    </div>
+    ${opts.note ? `<blockquote class="pull"><span class="q" style="color:${A}">“</span><p>${esc(opts.note).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>')}</p><cite>— Lectura de Strove</cite></blockquote>` : ''}
+    ${folio(++pn, 'Editorial')}</section>`);
 
-  // 3 · Instagram
+  // 3 · Instagram: apertura con el mejor post a media página
   if (hasIG) {
-    pages.push(`<section class="page">${pageHead('Instagram', 'Así le fue a la cuenta')}
-      <div class="tiles t3">
-        ${tile('Publicaciones del mes', nf(posts.length))}
-        ${tile('Interacciones', nf(ig.inter), delta(ig.inter, ig.pinter), 'Likes, comentarios, guardados y compartidos')}
-        ${tile('Guardados y compartidos', nf(ig.saves + ig.shares), '', 'La señal más fuerte de contenido útil')}
+    const n = pad(++ch);
+    pages.push(`<section class="page split">
+      <div class="sp-img" style="${img(top[0])}"><span class="sp-tag">El post del mes</span></div>
+      <div class="sp-txt">
+        ${chap(n, 'Instagram')}
+        <h2>Lo que más<br><i>conectó</i></h2>
+        ${top[0] ? `<p class="dek">“${esc(firstLine(top[0].caption, 120))}”</p>
+        <div class="sh">${+top[0].local_date.slice(8, 10)} de ${mesTxt}</div>
+        ${ledger([
+          [top[0].views != null ? 'Reproducciones' : 'Alcance', nf(top[0].views ?? top[0].reach)],
+          ['Me gusta', nf(top[0].likes)], ['Comentarios', nf(top[0].comments)],
+          ['Guardados', nf(top[0].saves)], ['Compartidos', nf(top[0].shares)],
+        ])}` : '<p class="dek">Todavía no hay posts publicados este mes.</p>'}
+        <div class="sh mt">La cuenta en el mes</div>
+        ${ledger([
+          ['Publicaciones', nf(posts.length)],
+          ['Interacciones', nf(ig.inter), dTxt(ig.inter, ig.pinter), 'Me gusta, comentarios, guardados y compartidos'],
+          ['Guardados + compartidos', nf(ig.saves + ig.shares), '', 'La señal más fuerte de contenido útil'],
+        ])}
       </div>
-      ${top.length ? `<div class="eb mt">Los posts con mejor resultado</div>
-      <div class="top">${top.map((p, i) => `<div class="tp"><div class="ti" style="background-image:url('${esc(p.thumb || '')}')"><span class="rk" style="background:${strong}">${i + 1}</span></div>
-        <div class="tc">${esc(firstLine(p.caption))}</div>
-        <div class="tm"><b>${nf(p.views ?? p.reach)}</b> ${p.views != null ? 'reproducciones' : 'alcance'}<br>♥ ${nf(p.likes)} · 💬 ${nf(p.comments)} · ⤓ ${nf(p.saves)} · ↗ ${nf(p.shares)}</div></div>`).join('')}</div>` : ''}
-      ${foot(++pn)}</section>`);
-    if (posts.length > 3) {
-      pages.push(`<section class="page">${pageHead('Instagram', 'Todo lo publicado en ' + MESES[r.m - 1])}
-        <div class="grid">${posts.map((p) => `<div class="gp"><div class="gi" style="background-image:url('${esc(p.thumb || '')}')"></div>
-          <div class="gm"><span>${+p.local_date.slice(8, 10)} ${MESES[r.m - 1].slice(0, 3)}</span><b>${nf(p.views ?? p.reach)}</b></div></div>`).join('')}</div>
-        <div class="small">Número = reproducciones de cada post (o alcance cuando Instagram no da reproducciones).</div>
-        ${foot(++pn)}</section>`);
+      ${folio(++pn, 'Instagram')}</section>`);
+    if (posts.length > 1) {
+      const rest = top.slice(1);
+      pages.push(`<section class="page">
+        <div class="kicker">Instagram · El feed de ${mesTxt}</div>
+        ${rest.length ? `<div class="duo">${rest.map((p, i) => `<figure><div class="fi" style="${img(p)}"></div><figcaption><span class="rk">N.º ${i + 2}</span>${esc(firstLine(p.caption))}<b>${nf(p.views ?? p.reach)} ${p.views != null ? 'reproducciones' : 'de alcance'}</b></figcaption></figure>`).join('')}</div>` : ''}
+        <div class="sh mt">Hoja de contactos · ${posts.length} publicaciones</div>
+        <div class="contact">${posts.map((p) => `<div class="cs"><div class="ci" style="${img(p)}"></div><div class="cm"><span>${+p.local_date.slice(8, 10)}.${pad(r.m)}</span><b>${nf(p.views ?? p.reach)}</b></div></div>`).join('')}</div>
+        <p class="note-s">Cifra = reproducciones de cada publicación (alcance cuando Instagram no da reproducciones).</p>
+        ${folio(++pn, 'Instagram')}</section>`);
     }
   }
 
-  // 4 · Sitio web + Google
+  // 4 · Sitio web y Google
   if (hasGA || hasGSC) {
+    const n = pad(++ch);
     const totalCh = channels.reduce((a, b) => a + b.value, 0) || 1;
-    pages.push(`<section class="page">${pageHead('Sitio web y Google', 'Quién llegó al sitio y cómo')}
-      <div class="tiles t3">
-        ${hasGA ? tile('Visitas', nf(cur.sessions), delta(cur.sessions, prev.sessions)) : ''}
-        ${hasGA ? tile('Personas', nf(cur.users), delta(cur.users, prev.users)) : ''}
-        ${hasGA && c.leadEvent ? tile('Contactos', nf(cur.leads || 0), delta(cur.leads, prev.leads), 'Clics a WhatsApp desde el sitio') : ''}
-        ${hasGSC ? tile('Apariciones en Google', nf(cur.impressions), delta(cur.impressions, prev.impressions)) : ''}
-        ${hasGSC ? tile('Clics desde Google', nf(cur.clicks), delta(cur.clicks, prev.clicks)) : ''}
-        ${hasGSC ? tile('Posición promedio', nf(cur.position, 1), delta(cur.position, prev.position, { invert: true, pts: true }), 'Entre más bajo, más arriba aparece') : ''}
+    pages.push(`<section class="page">
+      ${chap(n, 'Sitio web y Google')}
+      <h2 class="lead sm">${hasGA ? `<em style="color:${strong}">${nf(cur.sessions)}</em> visitas${cur.leads && c.leadEvent ? ` y <em style="color:${strong}">${nf(cur.leads)}</em> contactos` : ''} en ${mesTxt}.` : `<em style="color:${strong}">${nf(cur.clicks)}</em> clics desde Google en ${mesTxt}.`}</h2>
+      ${daily.length > 3 ? `<div class="chartwrap">${lineChart(daily.map((x) => x.date), daily.map((x) => x.value), strong)}<div class="cap">Visitas por día</div></div>` : ''}
+      <div class="cols">
+        <div><div class="sh">El sitio</div>${ledger([
+          hasGA ? ['Visitas', nf(cur.sessions), dTxt(cur.sessions, prev.sessions)] : null,
+          hasGA ? ['Personas', nf(cur.users), dTxt(cur.users, prev.users)] : null,
+          hasGA && c.leadEvent ? ['Contactos', nf(cur.leads || 0), dTxt(cur.leads, prev.leads), 'Clics a WhatsApp desde el sitio'] : null,
+          hasGSC ? ['Apariciones en Google', nf(cur.impressions), dTxt(cur.impressions, prev.impressions)] : null,
+          hasGSC ? ['Clics desde Google', nf(cur.clicks), dTxt(cur.clicks, prev.clicks)] : null,
+          hasGSC ? ['Posición promedio', nf(cur.position, 1), dTxt(cur.position, prev.position, { invert: true, pts: true }), 'Entre más bajo, más arriba aparece'] : null,
+        ])}</div>
+        <div>
+          ${channels.length ? `<div class="sh">De dónde llegan <i>· últimos 28 días</i></div><div class="chs">${channels.map((b) => `<div class="chr"><span class="cp">${Math.round((b.value / totalCh) * 100)}<sup>%</sup></span><span class="cnm">${esc(CHANNEL[b.label] || b.label)}</span></div>`).join('')}</div>` : ''}
+          ${queries.length ? `<div class="sh mt">Lo que buscan en Google <i>· últimos 28 días</i></div><ol class="qs">${queries.slice(0, 6).map((q) => `<li><span>${esc(q.label)}</span><b>${nf(q.value)}</b></li>`).join('')}</ol>` : ''}
+        </div>
       </div>
-      ${daily.length > 3 ? `<div class="eb mt">Visitas por día</div>${lineChart(daily.map((x) => x.date), daily.map((x) => x.value), strong)}` : ''}
-      <div class="two">
-        ${channels.length ? `<div><div class="eb">De dónde llegan <span class="lt">· últimos 28 días</span></div>${channels.map((b) => `<div class="bar"><span>${esc(CHANNEL[b.label] || b.label)}</span><i><em style="width:${(b.value / channels[0].value) * 100}%;background:${strong}"></em></i><b>${Math.round((b.value / totalCh) * 100)}%</b></div>`).join('')}</div>` : ''}
-        ${queries.length ? `<div><div class="eb">Lo que buscan en Google <span class="lt">· últimos 28 días</span></div><table class="q">${queries.map((q) => `<tr><td>${esc(q.label)}</td><td>${nf(q.value)} clics</td></tr>`).join('')}</table></div>` : ''}
-      </div>
-      ${foot(++pn)}</section>`);
+      ${folio(++pn, 'Sitio web y Google')}</section>`);
   }
 
   // 5 · Pauta
   if (hasAds) {
-    pages.push(`<section class="page">${pageHead('Pauta en Meta', 'Lo que se invirtió y lo que regresó')}
-      <div class="tiles t2">
-        ${tile('Inversión', money(cur.ad_spend), delta(cur.ad_spend, prev.ad_spend, { invert: true }))}
-        ${cur.ad_clicks != null ? tile('Clics', nf(cur.ad_clicks), delta(cur.ad_clicks, prev.ad_clicks)) : ''}
-        ${tile('Conversaciones', nf(cur.ad_messages || 0), delta(cur.ad_messages, prev.ad_messages), 'Mensajes que iniciaron por un anuncio')}
-        ${cur.ad_clicks ? tile('Costo por clic', '$' + nf(cur.ad_spend / cur.ad_clicks, 2), '', 'Pesos mexicanos') : ''}
+    const n = pad(++ch);
+    pages.push(`<section class="page">
+      ${chap(n, 'Pauta en Meta')}
+      <h2 class="lead sm">Se invirtieron <em style="color:${strong}">${money(cur.ad_spend)}</em>${cur.ad_messages ? ` y se abrieron <em style="color:${strong}">${nf(cur.ad_messages)}</em> conversaciones` : ''}.</h2>
+      <div class="cols">
+        <div><div class="sh">Resultados</div>${ledger([
+          ['Inversión', money(cur.ad_spend), dTxt(cur.ad_spend, prev.ad_spend, { invert: true })],
+          cur.ad_clicks != null ? ['Clics', nf(cur.ad_clicks), dTxt(cur.ad_clicks, prev.ad_clicks)] : null,
+          ['Conversaciones', nf(cur.ad_messages || 0), dTxt(cur.ad_messages, prev.ad_messages), 'Mensajes iniciados por un anuncio'],
+        ])}</div>
+        <div><div class="sh">Lo que cuesta</div>
+          ${cur.ad_messages ? `<div class="bignum" style="color:${strong}">$${nf(cur.ad_spend / cur.ad_messages)}<span>MXN por conversación</span></div>` : ''}
+          ${cur.ad_clicks ? `<div class="bignum s">$${nf(cur.ad_spend / cur.ad_clicks, 2)}<span>MXN por clic</span></div>` : ''}
+        </div>
       </div>
-      ${cur.ad_messages ? `<div class="block"><div class="eb">Costo por conversación</div><div class="big" style="color:${strong}">$${nf(cur.ad_spend / cur.ad_messages, 0)} <span>MXN</span></div></div>` : ''}
-      ${foot(++pn)}</section>`);
+      ${folio(++pn, 'Pauta')}</section>`);
   }
 
   // 6 · Lo que viene
   if (next.length) {
-    pages.push(`<section class="page">${pageHead('Lo que viene', cap(r.nextLabel) + ' en Instagram')}
-      <div class="next">${next.slice(0, 12).map((n) => `<div class="np">${n.has_image ? `<div class="ni" style="background-image:url('/api/plan/${n.id}/img?v=${encodeURIComponent(n.updated_at)}')"></div>` : '<div class="ni empty"></div>'}
-        <div class="nd">${+n.date.slice(8, 10)} de ${r.nextLabel}</div><div class="nt">${esc(n.title || '')}</div></div>`).join('')}</div>
-      ${foot(++pn)}</section>`);
+    const n = pad(++ch);
+    pages.push(`<section class="page">
+      ${chap(n, 'Lo que viene')}
+      <h2 class="lead sm">${cap(r.nextLabel)} en Instagram: <em style="color:${strong}">${next.length}</em> publicaciones en camino.</h2>
+      <div class="next">${next.slice(0, 12).map((x) => `<figure>${x.has_image ? `<div class="ni" style="background-image:url('/api/plan/${x.id}/img?v=${encodeURIComponent(x.updated_at)}')"></div>` : '<div class="ni"></div>'}
+        <figcaption><span>${+x.date.slice(8, 10)} ${r.nextLabel.slice(0, 3)}</span>${esc(x.title || '')}</figcaption></figure>`).join('')}</div>
+      ${folio(++pn, 'Lo que viene')}</section>`);
   }
 
-  const fileTitle = `${c.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_Reporte_${r.label}_${r.y}`;
+  // Contraportada
+  pages.push(`<section class="page back" style="background:${theme.bg}">
+    <div class="bk"><img src="/strove-logo.png" alt="Strove"><p>Estrategia, diseño y contenido.<br>hola@strove.mx · strove.mx</p></div>
+  </section>`);
+
+  const fileTitle = `${c.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_Reporte_${cap(mesTxt)}_${r.y}`;
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${esc(fileTitle)}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 @page{size:letter;margin:0}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{background:#d9d6cf;font-family:Inter,system-ui,sans-serif;color:#1b1b1b;font-size:10.5pt;line-height:1.5}
-.page{width:8.5in;height:11in;margin:24px auto;background:#F8F6F1;position:relative;overflow:hidden;padding:.75in .72in .9in;page-break-after:always;break-after:page;box-shadow:0 6px 30px rgba(0,0,0,.18)}
-.cover{color:#F3EFE6;display:flex;flex-direction:column;justify-content:space-between}
-.clogo{height:64px;max-width:240px;object-fit:contain;object-position:left;filter:brightness(0) invert(.95)}
-.cv-eb{font-size:8.5pt;letter-spacing:.28em;text-transform:uppercase;opacity:.7;margin-bottom:14px}
-.cover h1{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:64pt;line-height:1}
-.cover h1 i{font-style:italic}
-.cover p{max-width:4.4in;margin-top:22px;font-size:11pt;opacity:.85}
-.cv-foot{display:flex;align-items:center;gap:14px;font-size:8pt;letter-spacing:.22em;text-transform:uppercase;opacity:.75}
-.cv-foot img{height:20px;filter:brightness(0) invert(.95)}
-.ph{margin-bottom:26px}.eb{font-size:7.5pt;letter-spacing:.24em;text-transform:uppercase;color:#6d6a63;font-weight:600}
-.eb .lt{letter-spacing:.1em;font-weight:400;text-transform:none}
-h2{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:30pt;line-height:1.1;margin-top:6px}
-.tiles{display:grid;gap:12px}.t2{grid-template-columns:1fr 1fr}.t3{grid-template-columns:1fr 1fr 1fr}
-.tile{background:#fff;border:1px solid #e7e2d8;border-radius:12px;padding:16px 16px 14px}
-.tl{font-size:8pt;color:#6d6a63;font-weight:500}.tv{font-family:'Cormorant Garamond',serif;font-size:30pt;font-weight:600;line-height:1.15;margin:4px 0 2px}
-.th{font-size:7.5pt;color:#8a867e;margin-top:4px}
-.dl{font-size:8pt;font-weight:600}.dl.up{color:#2f7a4d}.dl.down{color:#b04a2f}.dl.flat{color:#8a867e;font-weight:500}
-.block{margin-top:26px}.bul{list-style:none;margin-top:10px}.bul li{padding:9px 0 9px 18px;border-bottom:1px solid #e7e2d8;position:relative}
-.bul li:before{content:'';position:absolute;left:2px;top:16px;width:6px;height:6px;border-radius:50%;background:#1b1b1b}
-.note{border-left:3px solid;padding:4px 0 4px 16px}.note p{margin-top:8px}
-.mt{margin-top:26px;margin-bottom:10px}
-.top{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.ti{aspect-ratio:4/5;border-radius:10px;background:#e7e2d8 center/cover;position:relative}
-.rk{position:absolute;top:8px;left:8px;color:#fff;font-weight:600;font-size:9pt;width:22px;height:22px;border-radius:50%;display:grid;place-items:center}
-.tc{font-size:8.5pt;font-weight:600;margin-top:8px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tm{font-size:8pt;color:#55524b;margin-top:4px}.tm b{color:#1b1b1b;font-size:10pt}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.gi{aspect-ratio:4/5;border-radius:8px;background:#e7e2d8 center/cover}
-.gm{display:flex;justify-content:space-between;font-size:7.5pt;color:#6d6a63;margin-top:4px}.gm b{color:#1b1b1b}
-.small{font-size:7.5pt;color:#8a867e;margin-top:12px}
-.chart{width:100%;height:auto;margin-top:4px}.chart text{font-size:9px;fill:#8a867e;font-family:Inter}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:26px}
-.bar{display:grid;grid-template-columns:1.3fr 1fr 34px;gap:8px;align-items:center;font-size:8.5pt;margin-top:9px}
-.bar i{height:7px;background:#ece7dd;border-radius:4px;overflow:hidden;display:block}.bar em{display:block;height:100%;border-radius:4px}.bar b{text-align:right}
-.q{width:100%;border-collapse:collapse;margin-top:6px;font-size:8.5pt}.q td{padding:7px 0;border-bottom:1px solid #e7e2d8}.q td+td{text-align:right;color:#55524b;white-space:nowrap}
-.big{font-family:'Cormorant Garamond',serif;font-size:44pt;font-weight:600}.big span{font-size:14pt}
-.next{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.ni{aspect-ratio:4/5;border-radius:8px;background:#e7e2d8 center/cover}.nd{font-size:7.5pt;color:#6d6a63;margin-top:6px;text-transform:uppercase;letter-spacing:.12em}
-.nt{font-size:8.5pt;font-weight:600;line-height:1.3;margin-top:2px}
-.foot{position:absolute;left:.72in;right:.72in;bottom:.45in;display:flex;justify-content:space-between;font-size:7pt;letter-spacing:.18em;text-transform:uppercase;color:#9a968d}
-.bar-top{position:sticky;top:0;z-index:5;background:#1b1b1b;color:#fff;display:flex;gap:14px;align-items:center;justify-content:center;padding:12px;font-size:10pt}
-.bar-top button{background:#fff;color:#1b1b1b;border:0;border-radius:999px;padding:9px 18px;font-weight:600;font-size:10pt;cursor:pointer}
+body{background:#cfcbc2;font-family:Inter,system-ui,sans-serif;color:${INK};font-size:9.5pt;line-height:1.55}
+.page{width:8.5in;height:11in;margin:24px auto;background:#F4F1EA;position:relative;overflow:hidden;padding:.8in .78in 1in;page-break-after:always;break-after:page;box-shadow:0 8px 34px rgba(0,0,0,.2)}
+i,em{font-style:italic}
+.serif,h1,h2,.lead,.bignum,.lv,.cp,.dek,.pull p{font-family:'Cormorant Garamond',Georgia,serif}
+/* portada */
+.cover{color:#F3EFE6;padding:0}
+.cv-photo{position:absolute;inset:0 0 34% 0;background:#333 center/cover}
+.cv-fade{position:absolute;inset:0 0 34% 0}
+.cv-top{position:absolute;top:.6in;left:.7in;right:.7in;display:flex;justify-content:space-between;align-items:flex-start}
+.clogo{height:54px;max-width:220px;object-fit:contain;object-position:left;filter:brightness(0) invert(.96)}
+.cv-issue{font-size:7pt;letter-spacing:.3em;text-transform:uppercase;text-align:right;line-height:1.9;opacity:.9}
+.cv-mid{position:absolute;left:.7in;right:.7in;bottom:1.25in}
+.cover h1{font-weight:400;font-size:86pt;line-height:.88;letter-spacing:-.01em}
+.cover h1 i{font-weight:400}
+.cv-rule{width:56px;height:2px;margin:26px 0 16px}
+.cover p{max-width:4.2in;font-size:10.5pt;line-height:1.6;opacity:.9}
+.cv-foot{position:absolute;left:.7in;right:.7in;bottom:.55in;display:flex;align-items:center;gap:12px;font-size:6.5pt;letter-spacing:.3em;text-transform:uppercase;opacity:.75}
+.cv-foot img{height:15px;filter:brightness(0) invert(.96)}
+/* tipografía */
+.kicker{font-size:7pt;letter-spacing:.32em;text-transform:uppercase;color:#7a766d;margin-bottom:18px}
+.lead{font-weight:400;font-size:34pt;line-height:1.08;letter-spacing:-.01em;max-width:6.4in}
+.lead.sm{font-size:28pt;margin-top:10px}
+.lead em{font-weight:500}
+h2{font-weight:400;font-size:40pt;line-height:.98}
+.sh{font-size:6.8pt;letter-spacing:.28em;text-transform:uppercase;color:#7a766d;padding-bottom:9px;border-bottom:1px solid ${INK};margin-bottom:2px}
+.sh i{letter-spacing:.06em;text-transform:none;font-family:'Cormorant Garamond',serif;font-size:9pt}
+.mt{margin-top:22px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:.45in;margin-top:.45in}
+.ledger .lr{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:10px 0 9px;border-bottom:1px solid #d9d4c8}
+.ll{font-size:8.5pt;color:#3a3833}.ll small{display:block;font-size:7pt;color:#8d897f;margin-top:1px}
+.lv{font-size:21pt;font-weight:500;line-height:1;text-align:right;white-space:nowrap}
+.dv{display:block;font-family:Inter,sans-serif;font-size:7pt;font-weight:600;margin-top:4px;letter-spacing:.02em}
+.dv i{font-weight:400;color:#8d897f}
+.dv.g{color:#2e6b48}.dv.b{color:#a5452c}
+.hl{list-style:none}
+.hl li{display:grid;grid-template-columns:30px 1fr;gap:6px;padding:10px 0 9px;border-bottom:1px solid #d9d4c8;font-size:8.8pt;line-height:1.5}
+.hl .n{font-family:'Cormorant Garamond',serif;font-size:15pt;line-height:1;font-style:italic}
+.pull{margin-top:.45in;padding-top:18px;border-top:1px solid ${INK};position:relative}
+.pull .q{position:absolute;top:2px;left:-6px;font-family:'Cormorant Garamond',serif;font-size:70pt;line-height:1}
+.pull p{font-size:17pt;line-height:1.3;font-style:italic;padding-left:42px;margin-bottom:8px}
+.pull cite{display:block;padding-left:42px;font-style:normal;font-size:7pt;letter-spacing:.28em;text-transform:uppercase;color:#7a766d}
+.chap{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.cn{font-family:'Cormorant Garamond',serif;font-size:13pt;font-style:italic}
+.cl{flex:0 0 40px;height:1px;background:${INK}}
+.ct{font-size:7pt;letter-spacing:.32em;text-transform:uppercase}
+/* apertura con foto */
+.split{padding:0;display:grid;grid-template-columns:47% 53%}
+.sp-img{background:#cfc9bb center/cover;position:relative}
+.sp-tag{position:absolute;left:.4in;bottom:.45in;color:#fff;font-size:6.8pt;letter-spacing:.3em;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.4)}
+.sp-txt{padding:.8in .65in 1in .5in}
+.sp-txt h2{margin-bottom:18px}
+.dek{font-size:14.5pt;line-height:1.3;font-style:italic;color:#2f2d29;margin-bottom:22px}
+/* feed */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:.3in}
+.duo .fi{aspect-ratio:4/5;background:#ddd7cb center/cover}
+figcaption{font-size:8.3pt;line-height:1.45;margin-top:9px;color:#3a3833}
+figcaption .rk{display:block;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12pt;color:${INK};margin-bottom:2px}
+figcaption b{display:block;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:13pt;color:${INK};margin-top:3px}
+.contact{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:12px}
+.ci{aspect-ratio:4/5;background:#ddd7cb center/cover}
+.cm{display:flex;justify-content:space-between;font-size:6.6pt;color:#7a766d;margin-top:3px}.cm b{color:${INK};font-weight:600}
+.note-s{font-size:6.8pt;color:#8d897f;margin-top:12px;font-style:italic}
+/* sitio */
+.chartwrap{margin-top:.3in}.chart{width:100%;height:auto}.chart text{font-size:9px;fill:#8d897f;font-family:Inter}
+.cap{font-size:6.8pt;letter-spacing:.28em;text-transform:uppercase;color:#7a766d;margin-top:2px}
+.chs{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.chr{display:flex;align-items:baseline;gap:8px;padding:9px 0 7px;border-bottom:1px solid #d9d4c8}
+.cp{font-size:24pt;font-weight:500;line-height:1;min-width:58px}.cp sup{font-size:10pt;vertical-align:top}
+.cnm{font-size:8pt;color:#3a3833;line-height:1.3}
+.qs{list-style:none;counter-reset:q}
+.qs li{counter-increment:q;display:grid;grid-template-columns:22px 1fr auto;gap:6px;padding:8px 0 7px;border-bottom:1px solid #d9d4c8;font-size:8.5pt}
+.qs li:before{content:counter(q);font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11pt;line-height:1.1}
+.qs b{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:12pt}
+/* pauta */
+.bignum{font-size:58pt;font-weight:500;line-height:1;margin-top:16px}
+.bignum.s{font-size:30pt;color:${INK}}
+.bignum span{display:block;font-family:Inter,sans-serif;font-size:7pt;letter-spacing:.24em;text-transform:uppercase;color:#7a766d;margin-top:8px;font-weight:500}
+/* lo que viene */
+.next{display:grid;grid-template-columns:repeat(4,1fr);gap:.22in;margin-top:.4in}
+.ni{aspect-ratio:4/5;background:#ddd7cb center/cover}
+.next figcaption span{display:block;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11pt;color:${INK}}
+/* contraportada */
+.back{display:flex;align-items:center;justify-content:center;color:#F3EFE6}
+.bk{text-align:center}.bk img{height:30px;filter:brightness(0) invert(.96)}
+.bk p{margin-top:16px;font-size:7pt;letter-spacing:.28em;text-transform:uppercase;line-height:2.1;opacity:.75}
+.folio{position:absolute;left:.78in;right:.78in;bottom:.5in;display:flex;justify-content:space-between;font-size:6.5pt;letter-spacing:.24em;text-transform:uppercase;color:#8d897f;border-top:1px solid #d9d4c8;padding-top:10px}
+.split .folio{left:calc(47% + .5in);right:.65in}.split .folio span:first-child{display:none}
+.bar-top{position:sticky;top:0;z-index:5;background:#151515;color:#fff;display:flex;gap:14px;align-items:center;justify-content:center;padding:12px;font-size:10pt}
+.bar-top button{background:#fff;color:#151515;border:0;border-radius:999px;padding:9px 18px;font-weight:600;font-size:10pt;cursor:pointer}
 .bar-top span{opacity:.75}
 @media print{body{background:none}.page{margin:0;box-shadow:none}.bar-top{display:none}}
 </style></head><body>
 <div class="bar-top"><button onclick="window.print()">Descargar PDF</button><span>En la ventana que se abre, elige <b>“Guardar como PDF”</b>.</span></div>
 ${pages.join('\n')}
 <script>
-// Espera a que carguen fuentes e imágenes; si viene con ?print=1 abre el diálogo de guardado
 const imgs=[...document.querySelectorAll('[style*="background-image"]')].map(e=>(e.style.backgroundImage.match(/url\\(["']?(.*?)["']?\\)/)||[])[1]).filter(Boolean);
 Promise.all([document.fonts.ready,...imgs.map(u=>new Promise(r=>{const i=new Image();i.onload=i.onerror=r;i.src=u;}))]).then(()=>{if(new URLSearchParams(location.search).get('print')==='1')setTimeout(()=>window.print(),300);});
 </script></body></html>`;
 }
 
-function firstLine(s) {
+function firstLine(s, max = 70) {
   const t = String(s || '').split('\n').map((x) => x.trim()).find(Boolean) || 'Post';
-  return t.length > 70 ? t.slice(0, 68) + '…' : t;
+  return t.length > max ? t.slice(0, max - 2) + '…' : t;
 }
