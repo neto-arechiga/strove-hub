@@ -325,7 +325,8 @@ h1.huge{font-size:190px;line-height:1}
 .kick{font-size:17px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:${T.warm};display:flex;align-items:center;gap:14px}
 .kick i{width:12px;height:12px;border-radius:50%;background:currentColor}
 .kick.hi{color:${T.hi}}
-.mini{height:52px;max-width:120px;object-fit:contain}
+.mini{height:52px;max-width:120px;object-fit:contain;filter:brightness(0);opacity:.85}
+.mini.inv{filter:brightness(0) invert(.94);opacity:1}
 h2{font-size:62px;font-weight:600;letter-spacing:-.035em;line-height:1.05;margin:40px 0 34px}
 .ft{position:absolute;left:96px;right:96px;bottom:44px;display:flex;justify-content:space-between;font-size:16px;letter-spacing:.1em;opacity:.75}
 /* tarjetas */

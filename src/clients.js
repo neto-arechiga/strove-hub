@@ -52,6 +52,23 @@ export const CLIENTS = [
     social: false,                  // no le llevamos redes
     color: '#C9A27E',
   },
+  {
+    slug: 'padel-ranch',
+    name: 'Padel Ranch',
+    url: '',                        // sin sitio web: solo redes sociales
+    repo: '',
+    ga4PropertyId: '',
+    gscSite: '',
+    leadEvent: '',
+    clarityId: '',
+    cms: '',
+    igUsername: 'padel.ranch.indoor',
+    igUserId: '',
+    adAccountName: 'padel',         // se busca la cuenta publicitaria que contenga "padel"
+    adAccountId: '',
+    color: '#D8EE4A',
+    report: { bg: '#264237', accent: '#D8EE4A', warm: '#A64B32', muted: '#AFAC80', cream: '#EDE8D5', card: '#E3DDC5' }, // colores de su reporte
+  },
 ];
 
 export const getClient = (slug) => CLIENTS.find((c) => c.slug === slug);

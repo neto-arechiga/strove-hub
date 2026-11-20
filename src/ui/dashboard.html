@@ -464,6 +464,8 @@ async function renderClient(slug, tab = 'sitio') {
   const c = d.client, s = d.status || {};
   const [dc, dl] = siteDot(s);
   const hasData = d.series.dates.length > 0;
+  const hasSite = !!c.url;
+  if (!hasSite && tab !== 'redes') tab = 'redes'; // clientes solo de redes
 
   app.innerHTML = `
     <a class="back" href="#/"><span>←</span> Todos los clientes</a>
@@ -475,9 +477,9 @@ async function renderClient(slug, tab = 'sitio') {
     ${cycleBar(d.cycle, slug)}
 
     <nav class="ctabs" id="ctabs">
-      <a href="#/c/${esc(slug)}/sitio" data-t="sitio">Sitio web</a>
+      ${hasSite ? `<a href="#/c/${esc(slug)}/sitio" data-t="sitio">Sitio web</a>` : ''}
       ${c.setup.social ? `<a href="#/c/${esc(slug)}/redes" data-t="redes">Redes y contenido</a>` : ''}
-      <a href="#/c/${esc(slug)}/cambios" data-t="cambios">Cambios al sitio${openReq ? `<b>${openReq}</b>` : ''}</a>
+      ${hasSite ? `<a href="#/c/${esc(slug)}/cambios" data-t="cambios">Cambios al sitio${openReq ? `<b>${openReq}</b>` : ''}</a>` : ''}
     </nav>
 
     <div data-tab="redes" id="redes"></div>
@@ -533,7 +535,7 @@ async function renderClient(slug, tab = 'sitio') {
 
     </div>
     ${(() => { const seen = new Set(); d._fail = d.logs.filter((l) => { if (seen.has(l.source)) return false; seen.add(l.source); return !l.ok; }).length; return ''; })()}
-    <details data-tab="sitio" class="panel hist" ${d._fail ? 'open' : ''}><summary><h3>historial de actualizaciones</h3><span class="eyebrow">${d._fail ? '⚠ Hay algo por revisar' : 'Todo en orden · ver'}</span></summary>
+    <details data-tab="${hasSite ? 'sitio' : 'redes'}" class="panel hist" ${d._fail ? 'open' : ''}><summary><h3>historial de actualizaciones</h3><span class="eyebrow">${d._fail ? '⚠ Hay algo por revisar' : 'Todo en orden · ver'}</span></summary>
       ${d.logs.length ? `<div class="log">${d.logs.map((l) => `<span>${esc(new Date(l.run_at).toLocaleString('es-MX', { dateStyle:'short', timeStyle:'short' }))}</span><span>${esc(SRC[l.source] || l.source)}</span><span class="${l.ok ? '' : 'bad'}">${esc(l.ok ? 'Listo' : l.message)}</span>`).join('')}</div>`
         : '<div class="empty">Todavía no se han pedido datos. Presiona “Actualizar datos”.</div>'}
     </details>`;

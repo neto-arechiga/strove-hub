@@ -81,7 +81,7 @@ export async function resolveAdAccount(env, client) {
   if (client.adAccountId) return client.adAccountId;
   const data = await graph(env, 'me/adaccounts', { fields: 'name,account_id', limit: 100 });
   const want = String(client.adAccountName || '').toLowerCase();
-  const acc = (data.data || []).find((a) => a.name?.toLowerCase() === want);
+  const acc = (data.data || []).find((a) => a.name?.toLowerCase() === want) || (data.data || []).find((a) => a.name?.toLowerCase().includes(want));
   if (!acc) throw new Error(`No encuentro la cuenta publicitaria "${client.adAccountName}"`);
   return acc.account_id;
 }
