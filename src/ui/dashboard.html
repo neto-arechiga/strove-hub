@@ -1084,6 +1084,7 @@ async function openClaude(slug, d) {
     <div class="eyebrow" style="line-height:1.6">Claude lee el contexto de la marca desde el Hub, arman juntos la estrategia y la parrilla, y cuando le digas “guárdala” la escribe directo en este calendario.</div>
     <label>Mes<select name="mes">${opts.map((o) => `<option value="${o.v}" ${o.v === def ? 'selected' : ''}>${o.l}</option>`).join('')}</select></label>
     <label>Mensaje para empezar<textarea name="prompt" style="min-height:96px">${esc(prompt(def))}</textarea></label>
+    <label>Abrir en<select name="where"><option value="app">App de escritorio de Claude</option><option value="web">Claude en el navegador</option></select></label>
     <div class="acts">${proj ? '' : '<span class="eyebrow" style="text-transform:none;letter-spacing:0">Tip: pega el link del proyecto de este cliente en <b>Marca</b> y este botón lo abre directo.</span>'}<span class="sp"></span><button type="button" class="btn" id="aiCopy">Copiar mensaje</button><button type="submit" class="btn pri">${proj ? `Abrir proyecto de ${esc(d.client.name)} ↗` : 'Abrir Claude ↗'}</button></div>
     <details class="aiset" ${localStorage.getItem('aiConnected') ? '' : 'open'}><summary>Conectar Claude con el Hub (una sola vez)</summary>
       <ol>
@@ -1099,14 +1100,20 @@ async function openClaude(slug, d) {
   const f = $('#aiForm'); const close = () => { m.hidden = true; m.innerHTML = ''; };
   m.onclick = (e) => { if (e.target === m) close(); };
   f.mes.onchange = () => { f.prompt.value = prompt(f.mes.value); };
+  try { f.where.value = localStorage.getItem('aiWhere') || 'app'; } catch { /* nada */ }
+  f.where.onchange = () => { try { localStorage.setItem('aiWhere', f.where.value); } catch { /* nada */ } };
   $('#aiCopy').onclick = () => copyText(f.prompt.value, 'Mensaje copiado');
   $('#aiUrlCopy').onclick = () => { copyText($('#aiUrl').textContent, 'Dirección del conector copiada'); try { localStorage.setItem('aiConnected', '1'); } catch { /* nada */ } };
   $('#aiRegen').onclick = async (e) => { e.preventDefault(); if (!confirmInline(e.target)) return;
     try { $('#aiUrl').textContent = (await api('/api/mcp', { method: 'POST' })).url; toast('Dirección nueva: actualízala en Claude'); } catch (err) { toast(err.message); } };
   f.onsubmit = (e) => { e.preventDefault(); const q = f.prompt.value;
     navigator.clipboard.writeText(q).catch(() => {});
-    if (proj) { window.open(proj, '_blank'); toast('Mensaje copiado: pégalo en un chat nuevo del proyecto (Cmd+V)'); }
-    else { window.open('https://claude.ai/new?q=' + encodeURIComponent(q), '_blank'); toast('Se abrió Claude (el mensaje también quedó copiado)'); }
+    // La app de escritorio responde a claude:// (misma ruta que claude.ai)
+    const app = f.where.value === 'app'; const base = app ? 'claude://claude.ai' : 'https://claude.ai';
+    if (proj) { const id = proj.replace(/^https:\/\/claude\.ai\/project\//, '').replace(/[/?#].*$/, '');
+      if (app) location.href = `${base}/project/${id}`; else window.open(`${base}/project/${id}`, '_blank');
+      toast('Mensaje copiado: pégalo en un chat nuevo del proyecto (Cmd+V)'); }
+    else { const u = `${base}/new?q=${encodeURIComponent(q)}`; if (app) location.href = u; else window.open(u, '_blank'); toast('Se abrió Claude con el mensaje listo'); }
     close(); };
 }
 // Confirmación en dos clics sin ventanas del navegador
