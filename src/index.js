@@ -128,12 +128,12 @@ async function brandOf(env, slug) {
 // Cliente con su kit de marca aplicado (colores de documentos, @ de Instagram, portada)
 async function withBrand(env, c) {
   const b = await brandOf(env, c.slug);
-  if (!b) return { ...c, brand: { dark: c.report?.bg || '#1F2B26', accent: c.report?.accent || c.color || '#BDBAB2', light: c.report?.cream || '#F1EFEA', ig: c.igUsername || '' } };
+  if (!b) return { ...c, brand: { dark: c.report?.bg || '#1F2B26', accent: c.report?.accent || c.color || '#BDBAB2', light: c.report?.cream || '#F1EFEA', ig: c.igUsername || '', claudeProject: '' } };
   const dark = hexOk(b.dark) ? b.dark : '#1F2B26', accent = hexOk(b.accent) ? b.accent : c.color, light = hexOk(b.light) ? b.light : '#F1EFEA';
   return { ...c, igUsername: b.ig || c.igUsername,
     report: { bg: dark, accent, cream: light, card: mixHex(light, dark, 0.07), muted: mixHex(accent, light, 0.35), warm: mixHex(dark, accent, 0.22) },
     coverUrl: b.hasCover ? `/brand-cover/${c.slug}?v=${encodeURIComponent(b.updated_at)}` : null,
-    brand: { dark, accent, light, ig: b.ig || c.igUsername || '' } };
+    brand: { dark, accent, light, ig: b.ig || c.igUsername || '', claudeProject: b.claudeProject || '' } };
 }
 
 // ---------- ciclo del mes: parrilla → aprobada → programada → reporte ----------
@@ -611,7 +611,9 @@ export default {
         const c = getClient(bk[1]);
         if (!c) return json({ error: 'Cliente no encontrado' }, 404);
         const b = await request.json();
-        const data = { dark: hexOk(b.dark) ? b.dark : null, accent: hexOk(b.accent) ? b.accent : null, light: hexOk(b.light) ? b.light : null, ig: String(b.ig || '').replace(/^@/, '').trim().slice(0, 40) };
+        const proj = String(b.claudeProject || '').trim();
+        const data = { dark: hexOk(b.dark) ? b.dark : null, accent: hexOk(b.accent) ? b.accent : null, light: hexOk(b.light) ? b.light : null, ig: String(b.ig || '').replace(/^@/, '').trim().slice(0, 40),
+          claudeProject: /^https:\/\/claude\.ai\/project\/[\w-]+/.test(proj) ? proj.slice(0, 200) : '' };
         const prev = await env.DB.prepare('SELECT cover FROM brands WHERE client = ?').bind(c.slug).first();
         let cover = prev?.cover || null;
         if (b.cover === null) cover = null;

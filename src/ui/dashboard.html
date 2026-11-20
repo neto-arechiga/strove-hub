@@ -442,6 +442,7 @@ function openBrand(slug, d) {
     <div class="row3">${field('dark', 'Color principal (oscuro)', b.dark || '#1F2B26')}${field('accent', 'Color de acento', b.accent || d.client.color)}${field('light', 'Fondo claro', b.light || '#F1EFEA')}</div>
     <div class="bprev" id="bPrev"></div>
     <label>Instagram<input type="text" name="ig" value="${esc(b.ig || '')}" placeholder="@usuario" maxlength="41"></label>
+    <label>Proyecto de Claude del cliente (opcional)<input type="url" name="claudeProject" value="${esc(b.claudeProject || '')}" placeholder="https://claude.ai/project/…"></label>
     <label>Foto de portada (opcional)<span class="cov"><span id="bCov">${b.hasCover ? `<img src="/brand-cover/${esc(slug)}?t=${Date.now()}" alt="">` : '<em>Si no subes una, se usa la foto del mejor post del mes.</em>'}</span>
       <button type="button" class="btn" id="bPick">${b.hasCover ? 'Cambiar' : 'Subir foto'}</button>${b.hasCover ? '<button type="button" class="btn ghost" id="bDel">Quitar</button>' : ''}<input type="file" id="bFile" accept="image/*" hidden></span></label>
     <div class="acts"><span class="sp"></span><button type="button" class="btn" id="bClose">Cancelar</button><button type="submit" class="btn pri">Guardar marca</button></div>
@@ -457,7 +458,7 @@ function openBrand(slug, d) {
   $('#bFile').onchange = async (e) => { const file = e.target.files[0]; if (!file) return; try { cover = await compressHi(file); $('#bCov').innerHTML = `<img src="${cover}" alt="">`; } catch (err) { toast(err.message); } };
   $('#bDel') && ($('#bDel').onclick = () => { cover = null; $('#bCov').innerHTML = '<em>Sin foto: se usa la del mejor post del mes.</em>'; });
   f.onsubmit = async (e) => { e.preventDefault();
-    try { await api(`/api/clients/${slug}/brand`, { method: 'PUT', body: JSON.stringify({ dark: f.dark.value, accent: f.accent.value, light: f.light.value, ig: f.ig.value, ...(cover !== undefined ? { cover } : {}) }) });
+    try { await api(`/api/clients/${slug}/brand`, { method: 'PUT', body: JSON.stringify({ dark: f.dark.value, accent: f.accent.value, light: f.light.value, ig: f.ig.value, claudeProject: f.claudeProject.value, ...(cover !== undefined ? { cover } : {}) }) });
       close(); toast('Marca guardada ✓'); renderClient(slug, currentTab()); } catch (err) { toast(err.message); } };
 }
 
@@ -1075,7 +1076,7 @@ async function openClaude(slug, d) {
   const m = $('#modal'); const t = new Date();
   const opts = Array.from({ length: 3 }, (_, k) => { const x = new Date(t.getFullYear(), t.getMonth() + k, 1); return { v: `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`, l: `${MESES[x.getMonth()]} ${x.getFullYear()}` }; });
   const def = t.getDate() >= 15 ? opts[1].v : opts[0].v;
-  let url = '';
+  let url = ''; const proj = d.brand?.claudeProject || '';
   try { url = (await api('/api/mcp')).url; } catch { /* nada */ }
   const prompt = (mes) => `Usa el conector Strove Hub. Vamos a planear el contenido de ${MESES[+mes.slice(5) - 1]} ${mes.slice(0, 4)} para ${d.client.name} (cliente: ${slug}, mes: ${mes}). Primero lee su contexto con contexto_cliente, luego propónme la estrategia del mes y después la parrilla post por post. Te iré pasando inspiración.`;
   m.innerHTML = `<div class="sheet one"><form class="fm" id="aiForm">
@@ -1083,7 +1084,7 @@ async function openClaude(slug, d) {
     <div class="eyebrow" style="line-height:1.6">Claude lee el contexto de la marca desde el Hub, arman juntos la estrategia y la parrilla, y cuando le digas “guárdala” la escribe directo en este calendario.</div>
     <label>Mes<select name="mes">${opts.map((o) => `<option value="${o.v}" ${o.v === def ? 'selected' : ''}>${o.l}</option>`).join('')}</select></label>
     <label>Mensaje para empezar<textarea name="prompt" style="min-height:96px">${esc(prompt(def))}</textarea></label>
-    <div class="acts"><span class="sp"></span><button type="button" class="btn" id="aiCopy">Copiar mensaje</button><button type="submit" class="btn pri">Abrir Claude ↗</button></div>
+    <div class="acts">${proj ? '' : '<span class="eyebrow" style="text-transform:none;letter-spacing:0">Tip: pega el link del proyecto de este cliente en <b>Marca</b> y este botón lo abre directo.</span>'}<span class="sp"></span><button type="button" class="btn" id="aiCopy">Copiar mensaje</button><button type="submit" class="btn pri">${proj ? `Abrir proyecto de ${esc(d.client.name)} ↗` : 'Abrir Claude ↗'}</button></div>
     <details class="aiset" ${localStorage.getItem('aiConnected') ? '' : 'open'}><summary>Conectar Claude con el Hub (una sola vez)</summary>
       <ol>
         <li>En Claude ve a <b>Configuración → Conectores</b> y elige <b>Agregar conector personalizado</b>.</li>
@@ -1104,7 +1105,9 @@ async function openClaude(slug, d) {
     try { $('#aiUrl').textContent = (await api('/api/mcp', { method: 'POST' })).url; toast('Dirección nueva: actualízala en Claude'); } catch (err) { toast(err.message); } };
   f.onsubmit = (e) => { e.preventDefault(); const q = f.prompt.value;
     navigator.clipboard.writeText(q).catch(() => {});
-    window.open('https://claude.ai/new?q=' + encodeURIComponent(q), '_blank'); toast('Se abrió Claude (el mensaje también quedó copiado)'); close(); };
+    if (proj) { window.open(proj, '_blank'); toast('Mensaje copiado: pégalo en un chat nuevo del proyecto (Cmd+V)'); }
+    else { window.open('https://claude.ai/new?q=' + encodeURIComponent(q), '_blank'); toast('Se abrió Claude (el mensaje también quedó copiado)'); }
+    close(); };
 }
 // Confirmación en dos clics sin ventanas del navegador
 function confirmInline(el) {
