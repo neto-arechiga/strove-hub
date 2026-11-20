@@ -36,6 +36,8 @@ const TOOLS = [
         guion: { type: 'string', description: 'Qué va en cada lámina o escena (para diseño). Una lámina por renglón: "1. …"' },
       }, required: ['fecha', 'formato', 'titulo', 'caption'] } },
     }, required: ['cliente', 'posts'] } },
+  { name: 'actualizar_datos', description: 'Trae los datos más recientes de un cliente (Instagram, pauta, sitio) y regresa qué se conectó bien y qué falló. Si el cliente no tiene datos, trae 90 días de historia.',
+    inputSchema: { type: 'object', properties: { cliente: { type: 'string' } }, required: ['cliente'] } },
   { name: 'editar_post', description: 'Cambia uno o varios campos de un post del calendario (usa el id que regresa ver_calendario).',
     inputSchema: { type: 'object', properties: { id: { type: 'number' }, fecha: { type: 'string' }, hora: { type: 'string' }, formato: { type: 'string', enum: FORMATS }, titulo: { type: 'string' }, serie: { type: 'string' }, caption: { type: 'string' }, guion: { type: 'string' }, estado: { type: 'string', enum: ['borrador', 'por_aprobar', 'aprobado'] } }, required: ['id'] } },
 ];
@@ -181,6 +183,18 @@ async function callTool(env, deps, name, a) {
       }
     }
     return text(`Listo: ${created} post${created === 1 ? '' : 's'} nuevo${created === 1 ? '' : 's'}${updated ? ` y ${updated} actualizado${updated === 1 ? '' : 's'}` : ''} en el calendario de ${c.name}.${avisos.length ? '\nOjo: ' + avisos.join('; ') : ''}\nVer en el Hub: ${hubLink(env, c.slug)}`);
+  }
+
+  if (name === 'actualizar_datos') {
+    const c = deps.CLIENTS.find((x) => x.slug === String(a.cliente).toLowerCase()) || findClient(deps, a.cliente);
+    if (!env.HUB) throw new Error('El conector no puede pedir la actualización en este momento');
+    const has = await DB.prepare('SELECT 1 FROM metrics WHERE client = ? LIMIT 1').bind(c.slug).first();
+    const token = await deps.formToken(env, c.slug, 'internal');
+    const res = await env.HUB.fetch(`https://hub.internal/internal/sync?client=${c.slug}&days=${has ? 10 : 90}`, { method: 'POST', headers: { 'x-internal': token } });
+    let d; try { d = await res.json(); } catch { throw new Error('El Hub no respondió'); }
+    const steps = d[c.slug] || [];
+    const NAMES = { ga4: 'Analytics', gsc: 'Search Console', instagram: 'Instagram', pauta: 'Pauta', github: 'GitHub', solicitudes: 'Solicitudes', uptime: 'Sitio en línea' };
+    return text(steps.map((x) => `${NAMES[x.source] || x.source}: ${x.ok ? 'listo' : 'falló — ' + x.error}`).join('\n') || 'Sin pasos que actualizar');
   }
 
   if (name === 'editar_post') {
