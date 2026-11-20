@@ -4,7 +4,9 @@ import { accessUser, formToken, checkFormToken } from './auth.js';
 import { syncAll, syncClient, uptimeAll, refreshRequests } from './sync.js';
 import { createIssue } from './github.js';
 import { renderReport } from './report.js';
+import { discoverInstagram } from './meta.js';
 import { renderPreview } from './preview.js';
+import { handleMcp } from './mcp.js';
 import dashboardHtml from './ui/dashboard.html';
 import formHtml from './ui/form.html';
 import approveHtml from './ui/aprobar.html';
@@ -18,7 +20,7 @@ async function ensureSchema(env) {
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
   // Columnas nuevas en tablas existentes (falla sin problema si ya existen)
-  for (const q of ['ALTER TABLE content_plan ADD COLUMN series TEXT']) { try { await env.DB.prepare(q).run(); } catch { /* ya existe */ } }
+  for (const q of ['ALTER TABLE content_plan ADD COLUMN series TEXT', 'ALTER TABLE content_plan ADD COLUMN brief TEXT']) { try { await env.DB.prepare(q).run(); } catch { /* ya existe */ } }
   schemaReady = true;
 }
 
@@ -102,6 +104,15 @@ async function series(env, slug, metrics, days) {
 
 const logoUrl = (slug, v) => `/logo/${slug}${v ? '?v=' + encodeURIComponent(v) : ''}`;
 const statusOf = (env, slug) => env.DB.prepare('SELECT * FROM site_status WHERE client = ?').bind(slug).first();
+
+// ---------- conector de Claude (MCP) ----------
+async function mcpKey(env, regenerate = false) {
+  const row = !regenerate && await env.DB.prepare("SELECT value FROM settings WHERE key = 'mcp_key'").first();
+  if (row?.value) return row.value;
+  const k = [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  await env.DB.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('mcp_key', ?)").bind(k).run();
+  return k;
+}
 
 // ---------- kit de marca ----------
 const hexOk = (h) => /^#[0-9a-fA-F]{6}$/.test(h || '');
@@ -268,7 +279,7 @@ async function clientDetail(env, c) {
 const PLAN_STATUSES = ['borrador', 'por_aprobar', 'cambios', 'aprobado', 'programado', 'publicado'];
 const PLAN_FORMATS = ['post', 'carrusel', 'reel', 'historia'];
 const PLAN_NETWORKS = ['instagram', 'facebook', 'ambas'];
-const PLAN_COLS = 'id, client, date, time, network, format, title, series, copy, status, client_comment, reviewed_by, reviewed_at, post_id, created_by, created_at, updated_at';
+const PLAN_COLS = 'id, client, date, time, network, format, title, series, copy, brief, status, client_comment, reviewed_by, reviewed_at, post_id, created_by, created_at, updated_at';
 
 function cleanPlan(body, partial) {
   const out = {};
@@ -278,7 +289,7 @@ function cleanPlan(body, partial) {
   if (body.network !== undefined) { if (!PLAN_NETWORKS.includes(body.network)) throw new Error('Red no válida'); out.network = body.network; }
   if (body.format !== undefined) { if (!PLAN_FORMATS.includes(body.format)) throw new Error('Formato no válido'); out.format = body.format; }
   if (body.status !== undefined) { if (!PLAN_STATUSES.includes(body.status)) throw new Error('Estado no válido'); out.status = body.status; }
-  str('title', 120); str('copy', 2200); str('series', 80);
+  str('title', 120); str('copy', 2200); str('series', 80); str('brief', 4000);
   if (body.image !== undefined) {
     if (body.image && !/^data:image\/(jpeg|png|webp);base64,/.test(body.image)) throw new Error('Imagen no válida');
     if (body.image && body.image.length > 1_400_000) throw new Error('La imagen es muy pesada');
@@ -465,8 +476,22 @@ export default {
     const lg = path.match(/^\/logo\/([a-z0-9-]+)$/);
     if (lg && request.method === 'GET') return serveLogo(env, lg[1], request);
 
+    // Conector de Claude: /mcp/<llave> (solo en el Worker público; la llave se ve en el Hub)
+    const mk = path.match(/^\/mcp\/([a-f0-9]{48})$/);
+    if (mk && env.PUBLIC_ONLY === '1') {
+      if (mk[1] !== (await mcpKey(env))) return new Response('No autorizado', { status: 401 });
+      return handleMcp(request, env, { CLIENTS, withBrand, monthCycle, bestTime, mxToday, shift, formToken });
+    }
+
     // El Worker de clientes (strove-clientes) solo sirve las páginas públicas de arriba
     if (env.PUBLIC_ONLY === '1') return html('<h1>Página no encontrada</h1>', 404);
+
+    // Inspiración de Instagram para el conector (el Worker público no tiene la llave de Meta)
+    if (path === '/internal/ig-discovery') {
+      if (!(await checkFormToken(env, 'mcp', request.headers.get('x-internal'), 'internal'))) return json({ error: 'No' }, 403);
+      try { return json(await discoverInstagram(env, url.searchParams.get('u') || '', Math.min(25, +url.searchParams.get('n') || 12))); }
+      catch (e) { return json({ error: e.message }, 400); }
+    }
 
     // Sincronización interna: el cron manda cada cliente en su propia invocación (vía service binding)
     if (path === '/internal/sync' && request.method === 'POST') {
@@ -546,6 +571,11 @@ export default {
       if (sl && request.method === 'DELETE' && sl[2] === undefined) {
         await env.DB.prepare('DELETE FROM plan_slides WHERE plan_id = ?').bind(+sl[1]).run();
         return json({ ok: true });
+      }
+
+      if (path === '/api/mcp') {
+        const k = await mcpKey(env, request.method === 'POST');
+        return json({ url: `${env.CLIENT_URL || 'https://strove-clientes.netoogare.workers.dev'}/mcp/${k}` });
       }
 
       if (path === '/api/best-time' && request.method === 'GET') {

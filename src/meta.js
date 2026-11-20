@@ -180,3 +180,20 @@ export async function fetchReportLive(env, client, from, to, prevFrom, prevTo) {
   }
   return out;
 }
+
+// Inspiración: posts recientes de otra cuenta de Instagram (negocio o creador) vía business_discovery
+export async function discoverInstagram(env, username, n = 12) {
+  const d = await graph(env, 'me/accounts', { fields: 'instagram_business_account', limit: 50 });
+  const ig = (d.data || []).map((p) => p.instagram_business_account?.id).find(Boolean);
+  if (!ig) throw new Error('No hay una cuenta de Instagram de Strove para consultar');
+  const f = `business_discovery.username(${username}){username,name,biography,followers_count,media_count,media.limit(${n}){caption,media_type,media_product_type,like_count,comments_count,timestamp,permalink}}`;
+  let r;
+  try { r = await graph(env, ig, { fields: f }); }
+  catch (e) { throw new Error(/cannot be found|does not exist|Invalid user/i.test(e.message) ? `@${username} no existe o es una cuenta personal (solo se pueden leer cuentas de negocio o creador)` : e.message); }
+  const b = r.business_discovery || {};
+  return {
+    cuenta: '@' + b.username, nombre: b.name, bio: b.biography, seguidores: b.followers_count, publicaciones: b.media_count,
+    posts: (b.media?.data || []).map((m) => ({ fecha: (m.timestamp || '').slice(0, 10), formato: m.media_product_type === 'REELS' ? 'reel' : m.media_type === 'CAROUSEL_ALBUM' ? 'carrusel' : 'post',
+      likes: m.like_count, comentarios: m.comments_count, caption: m.caption || '', link: m.permalink })),
+  };
+}

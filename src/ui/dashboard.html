@@ -260,6 +260,12 @@ details.hist[open] summary{margin-bottom:14px}
 .cov{display:flex;gap:10px;align-items:center;flex-wrap:wrap;text-transform:none;letter-spacing:0;font-family:var(--sans);font-size:12px}
 .cov img{height:70px;border-radius:8px}.cov em{color:var(--mut);font-style:normal}
 @media (max-width:760px){.task{grid-template-columns:1fr;gap:6px}.cycle{grid-template-columns:1fr 1fr}.row3{grid-template-columns:1fr}}
+.aiset{margin-top:6px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--card2)}
+.aiset summary{cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.aiset ol{margin:12px 0 8px 18px;font-size:13px;line-height:1.7;text-transform:none;letter-spacing:0;font-family:var(--sans);color:var(--txt)}
+.aiurl{display:flex;gap:8px;align-items:center}.aiurl code{flex:1;font-family:var(--mono);font-size:11px;background:#0d0d0d;border:1px solid var(--line);border-radius:8px;padding:9px 10px;word-break:break-all;color:var(--txt)}
+.aiset a{color:var(--org)}
+.pc-br{margin-top:8px}.pc-br summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--mut)}.pc-br div{white-space:pre-wrap;font-size:12.5px;line-height:1.5;color:#cfccc6;margin-top:6px}
 .sheet.one{grid-template-columns:1fr;max-width:860px}
 .cnt{letter-spacing:.04em;text-transform:none;color:var(--dim)}
 .bad{color:var(--org)!important}
@@ -670,7 +676,7 @@ function renderSocial(d, slug) {
       <div class="panel-h">
         <h3>calendario de contenido</h3>
         <div class="cal-h"><button class="nav" id="calPrev" aria-label="Mes anterior">‹</button><span class="mon" id="calMon"></span><button class="nav" id="calNext" aria-label="Mes siguiente">›</button>
-        <button class="btn" id="pvBtn">Vista previa del mes</button><button class="btn pur" id="gridUp">Subir parrilla</button><input type="file" id="gridFile" accept="application/pdf,.pdf,application/json,.json" hidden>
+        <button class="btn pri" id="aiBtn">Planear con Claude</button><button class="btn" id="pvBtn">Vista previa del mes</button><button class="btn pur" id="gridUp">Subir parrilla</button><input type="file" id="gridFile" accept="application/pdf,.pdf,application/json,.json" hidden>
         <button class="btn pri" id="calNew">+ Nuevo post</button></div>
       </div>
       <div class="legend">${Object.entries(PSTATUS).map(([k2, v]) => `<span><i class="sc-${k2}" style="background:var(--sc)"></i>${v}</span>`).join('')}<span><i style="background:#4F8EF7"></i>Programado en Facebook</span><span><i style="background:#5A5854"></i>Ya en Instagram</span></div>
@@ -698,6 +704,7 @@ function renderSocial(d, slug) {
   $('#calNew').addEventListener('click', () => openEditor(slug, { date: ymd(new Date()), status: 'borrador', network: 'instagram', format: 'post' }, d));
   $('#gridUp').addEventListener('click', () => $('#gridFile').click());
   $('#pvBtn').addEventListener('click', () => openPreviewDoc(slug));
+  $('#aiBtn').addEventListener('click', () => openClaude(slug, d));
   $('#gridFile').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importGrid(f, slug, d); });
   drawCal(d, slug);
   drawProg(d, slug);
@@ -756,6 +763,7 @@ function openEditor(slug, it, d) {
       <div class="row"><label>Título<input type="text" name="title" value="${esc(it.title || '')}" maxlength="120" placeholder="Ej. 5 decisiones antes de reservar"></label><label>Serie (opcional)<input type="text" name="series" value="${esc(it.series || '')}" maxlength="80" placeholder="Ej. NAVIDAD EN EUROPA · 01/03"></label></div>
       <label>Caption <span class="cnt" id="edCnt"></span><textarea name="copy" maxlength="2200" placeholder="Texto del post con sus hashtags">${esc(it.copy || '')}</textarea></label>
       <div class="acts"><button type="button" class="btn" id="edCopy">Copiar caption</button></div>
+      <label>Guion de láminas / escenas (para diseño)<textarea name="brief" maxlength="4000" style="min-height:90px" placeholder="1. Portada: …&#10;2. …">${esc(it.brief || '')}</textarea></label>
       <label>Estado<select name="status">${opt(PSTATUS, it.status)}</select></label>
       <div class="acts">
         ${isNew ? '' : '<button type="button" class="btn ghost" id="edDel">Borrar</button>'}<span class="sp"></span>
@@ -775,7 +783,7 @@ function openEditor(slug, it, d) {
   $('#edFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return;
     try { image = await compress(f); $('#edImg').querySelector('img, .eyebrow').outerHTML = `<img src="${image}" alt="">`; } catch (err) { toast(err.message); } };
   const save = async (extra = {}) => {
-    const f = $('#edForm'); const body = { date: f.date.value, time: f.time.value, network: f.network.value, format: f.format.value, title: f.title.value, series: f.series.value, copy: f.copy.value, status: f.status.value, ...extra };
+    const f = $('#edForm'); const body = { date: f.date.value, time: f.time.value, network: f.network.value, format: f.format.value, title: f.title.value, series: f.series.value, copy: f.copy.value, brief: f.brief.value, status: f.status.value, ...extra };
     if (image !== undefined) body.image = image;
     try {
       if (isNew) await api('/api/plan', { method: 'POST', body: JSON.stringify({ client: slug, ...body }) });
@@ -852,6 +860,7 @@ function progCard(i, when, best) {
       <div class="pc-t">${esc(i.title || PFORMAT[i.format])}</div>
       <div class="pc-m">${esc(PFORMAT[i.format])}${i.slides ? ` · ${i.slides} láminas` : ''} · <span class="${st.warn ? 'bad' : ''}">${esc(st.label)}</span></div>
       <div class="pc-cap">${esc(i.copy || 'Sin caption todavía')}</div>
+      ${i.brief ? `<details class="pc-br"><summary>Guion de láminas</summary><div>${esc(i.brief)}</div></details>` : ''}
       <div class="pc-a">
         <button class="btn pri" data-a="copy" ${i.copy ? '' : 'disabled'}>Copiar caption</button>
         <button class="btn" data-a="body" ${i.copy ? '' : 'disabled'} title="Para poner los hashtags en el primer comentario">Sin hashtags</button>
@@ -1059,6 +1068,50 @@ async function importGrid(file, slug, d) {
   };
 }
 
+
+
+// ---------------- planear con Claude (conector) ----------------
+async function openClaude(slug, d) {
+  const m = $('#modal'); const t = new Date();
+  const opts = Array.from({ length: 3 }, (_, k) => { const x = new Date(t.getFullYear(), t.getMonth() + k, 1); return { v: `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`, l: `${MESES[x.getMonth()]} ${x.getFullYear()}` }; });
+  const def = t.getDate() >= 15 ? opts[1].v : opts[0].v;
+  let url = '';
+  try { url = (await api('/api/mcp')).url; } catch { /* nada */ }
+  const prompt = (mes) => `Usa el conector Strove Hub. Vamos a planear el contenido de ${MESES[+mes.slice(5) - 1]} ${mes.slice(0, 4)} para ${d.client.name} (cliente: ${slug}, mes: ${mes}). Primero lee su contexto con contexto_cliente, luego propónme la estrategia del mes y después la parrilla post por post. Te iré pasando inspiración.`;
+  m.innerHTML = `<div class="sheet one"><form class="fm" id="aiForm">
+    <h3>planear con claude</h3>
+    <div class="eyebrow" style="line-height:1.6">Claude lee el contexto de la marca desde el Hub, arman juntos la estrategia y la parrilla, y cuando le digas “guárdala” la escribe directo en este calendario.</div>
+    <label>Mes<select name="mes">${opts.map((o) => `<option value="${o.v}" ${o.v === def ? 'selected' : ''}>${o.l}</option>`).join('')}</select></label>
+    <label>Mensaje para empezar<textarea name="prompt" style="min-height:96px">${esc(prompt(def))}</textarea></label>
+    <div class="acts"><span class="sp"></span><button type="button" class="btn" id="aiCopy">Copiar mensaje</button><button type="submit" class="btn pri">Abrir Claude ↗</button></div>
+    <details class="aiset" ${localStorage.getItem('aiConnected') ? '' : 'open'}><summary>Conectar Claude con el Hub (una sola vez)</summary>
+      <ol>
+        <li>En Claude ve a <b>Configuración → Conectores</b> y elige <b>Agregar conector personalizado</b>.</li>
+        <li>Nombre: <b>Strove Hub</b>. URL: pega esta dirección:</li>
+      </ol>
+      <div class="aiurl"><code id="aiUrl">${esc(url || 'No se pudo obtener la dirección')}</code><button type="button" class="btn" id="aiUrlCopy">Copiar</button></div>
+      <ol start="3"><li>Guarda, y en el chat activa el conector <b>Strove Hub</b> desde el botón de herramientas.</li></ol>
+      <div class="eyebrow" style="line-height:1.6;margin-top:8px">Esa dirección funciona como contraseña: compártela solo con tu equipo. <a href="#" id="aiRegen">Generar una nueva</a> (la anterior deja de funcionar).</div>
+    </details>
+  </form></div>`;
+  m.hidden = false;
+  const f = $('#aiForm'); const close = () => { m.hidden = true; m.innerHTML = ''; };
+  m.onclick = (e) => { if (e.target === m) close(); };
+  f.mes.onchange = () => { f.prompt.value = prompt(f.mes.value); };
+  $('#aiCopy').onclick = () => copyText(f.prompt.value, 'Mensaje copiado');
+  $('#aiUrlCopy').onclick = () => { copyText($('#aiUrl').textContent, 'Dirección del conector copiada'); try { localStorage.setItem('aiConnected', '1'); } catch { /* nada */ } };
+  $('#aiRegen').onclick = async (e) => { e.preventDefault(); if (!confirmInline(e.target)) return;
+    try { $('#aiUrl').textContent = (await api('/api/mcp', { method: 'POST' })).url; toast('Dirección nueva: actualízala en Claude'); } catch (err) { toast(err.message); } };
+  f.onsubmit = (e) => { e.preventDefault(); const q = f.prompt.value;
+    navigator.clipboard.writeText(q).catch(() => {});
+    window.open('https://claude.ai/new?q=' + encodeURIComponent(q), '_blank'); toast('Se abrió Claude (el mensaje también quedó copiado)'); close(); };
+}
+// Confirmación en dos clics sin ventanas del navegador
+function confirmInline(el) {
+  if (el.dataset.sure) return true;
+  el.dataset.sure = '1'; const old = el.textContent; el.textContent = '¿Seguro? Clic otra vez';
+  setTimeout(() => { delete el.dataset.sure; el.textContent = old; }, 4000); return false;
+}
 
 // ---------------- vista previa del mes (para el cliente) ----------------
 async function openPreviewDoc(slug) {

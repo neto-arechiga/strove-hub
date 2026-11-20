@@ -13,6 +13,8 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "strove-hub", "database_id": "fa234bcf-2888-4d2d-bbac-b5a136910d46" }
   ],
-  "vars": { "PUBLIC_ONLY": "1" }
+  // El conector de Claude le pide al Hub lo que necesita la llave de Meta (inspiración de Instagram)
+  "services": [{ "binding": "HUB", "service": "strove-hub" }],
+  "vars": { "PUBLIC_ONLY": "1", "HUB_URL": "https://strove-hub.netoogare.workers.dev" }
   // No necesita secretos: la llave de los links vive en la base de datos y las tareas de GitHub las crea el Hub.
 }
